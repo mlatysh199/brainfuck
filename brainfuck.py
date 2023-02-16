@@ -1,57 +1,73 @@
-def interpreter(size, code, in_tape="", stack_trace_data=dict()):
-	ptr = 0
-	in_tape_pos = 0
-	mem = [0]*size
-	length = len(code)
-	pc = 0
-	return_stack = []
-	result = ""
-	stack_trace = ["start"]
-	while pc < length:
-		ins = code[pc]
-		if ins == '<': ptr -= 1
-		elif ins == '>': ptr += 1
-		elif ins == '-': mem[ptr] = (mem[ptr] - 1)&255
-		elif ins == '+': mem[ptr] = (mem[ptr] + 1)&255
-		elif ins == '.':
-			result += chr(mem[ptr])
-			if not in_tape: print(chr(mem[ptr]), end='')
-		elif ins == ',':
-			char = ''
-			if in_tape:
-				char = in_tape[in_tape_pos]
-				in_tape_pos += 1
-			else: char = input()[0]
-			mem[ptr] = ord(char)&255
-		elif ins == '[':
-			return_stack.append(pc)
-			if not mem[ptr]:
-				brks = 1
-				while brks:
-					pc += 1
-					brks = brks + (code[pc] == '[') - (code[pc] == ']')
-				pc -= 1
-		elif ins == ']':
-			ret = return_stack.pop()
-			if mem[ptr]: pc = ret - 1
-		if stack_trace_data:
-			mem_text = list('  ' + '  '.join([str(i).rjust(3) for i in mem]) + '  ')
-			mem_text[5 + ptr*5] = '#'
-			print("DEBUG:", str(pc).rjust(4), ins, str(ptr).rjust(3), '[' + ''.join(mem_text) + "]")
-			if pc in stack_trace_data:
-				print("DEBUG:", " > ".join(stack_trace), end=" ")
-				if stack_trace and stack_trace_data[pc][-1] == stack_trace[-1]:
-					print("<<<")
-					for _ in range(len(stack_trace_data[pc])): stack_trace.pop()
-				else:
-					stack_trace += stack_trace_data[pc]
-					print(">>> " + " > ".join(stack_trace_data[pc]))
-		pc += 1
-	return result
+# Runs brainfuck code
+class Interpreter:
+	def __init__(self, converter, size, debug=False):
+		if size < converter.min_mem_size(): raise IndexError(f"This program requires at least {converter.min_mem_size()} units of memory.")
+		self.debug = debug
+		self.code = converter.get_bf()
+		self.stack_trace_data = converter.get_stack_trace_data()
+		self.size = size
+		self.reset()
 
-# TODO
-import traceback
+	# Presets all the execution data
+	def reset(self):
+		self.ptr = 0
+		self.in_tape_pos = 0
+		self.mem = [0]*self.size
+		self.pc = 0
+		self.return_stack = []
+		self.stack_trace = ["start"]
 
+	# Shows debug info
+	def __debug(self, ins):
+		result = ""
+		mem_text = list('  ' + '  '.join([str(i).rjust(3) for i in self.mem]) + '  ')
+		mem_text[5 + self.ptr*5] = '#'
+		result += f"DEBUG: {str(self.pc).rjust(4)} {ins} {str(self.ptr).rjust(3)}  [{''.join(mem_text)}]"
+		if self.pc in self.stack_trace_data[1] and (ins != ']' or not self.mem[self.ptr]):
+			for _ in range(len(self.stack_trace_data[1][self.pc])): self.stack_trace.pop()
+			result += "\nDEBUG: " + " > ".join(self.stack_trace) + " <<< " + " < ".join(self.stack_trace_data[1][self.pc])
+		elif self.pc in self.stack_trace_data[0] and (ins != '[' or len(self.stack_trace) < len(self.stack_trace_data[0][self.pc]) or self.stack_trace[-len(self.stack_trace_data[0][self.pc]):] != self.stack_trace_data[0][self.pc]):
+			result += "\nDEBUG: " + " > ".join(self.stack_trace) + ' '
+			self.stack_trace += self.stack_trace_data[0][self.pc]
+			result += ">>> " + " > ".join(self.stack_trace_data[0][self.pc])
+		return result
+
+	def run(self, in_tape=""):
+		length = len(self.code)
+		result = ""
+		while self.pc < length:
+			ins = self.code[self.pc]
+			if self.debug: print(self.__debug(ins))
+			if ins == '<': self.ptr -= 1
+			elif ins == '>': self.ptr += 1
+			elif ins == '-': self.mem[self.ptr] = (self.mem[self.ptr] - 1)&255
+			elif ins == '+': self.mem[self.ptr] = (self.mem[self.ptr] + 1)&255
+			elif ins == '.':
+				result += chr(self.mem[self.ptr])
+				if not in_tape: print(chr(self.mem[self.ptr]), end='')
+			elif ins == ',':
+				char = ''
+				if in_tape:
+					char = in_tape[self.in_tape_pos]
+					self.in_tape_pos += 1
+				else: char = input()[0]
+				self.mem[self.ptr] = ord(char)&255
+			elif ins == '[':
+				self.return_stack.append(self.pc)
+				if not self.mem[self.ptr]:
+					brks = 1
+					while brks:
+						self.pc += 1
+						brks = brks + (self.code[self.pc] == '[') - (self.code[self.pc] == ']')
+					self.pc -= 1
+			elif ins == ']':
+				ret = self.return_stack.pop()
+				if self.mem[self.ptr]: self.pc = ret - 1
+			self.pc += 1
+		if self.debug: print(self.__debug(' '))
+		return result
+
+# Converts pseudo brainfuck code to brainfuck
 class Converter:
 	def __init__(self, code):
 		self.functions = {"repeat(" : self.func_repeat,
@@ -90,13 +106,14 @@ class Converter:
 		self.skip = [' ', '\n', '\t']
 		self.numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 		self.pc = 0
-		self.stack_trace_data = dict()
+		self.stack_trace_data = [dict(), dict()]
 		self.bf = self.convert(code)
-		print(self.stack_trace_data)
 
+	# Returns the generated brainfuck code
 	def get_bf(self):
 		return self.bf
 
+	# Returns the generated function stack trace
 	def get_stack_trace_data(self):
 		return self.stack_trace_data
 
@@ -107,9 +124,10 @@ class Converter:
 		number_mode = False
 		while pos < len(code):
 			if code[pos] in self.commands:
-				result += code[pos]*(number + (number == 0 and not number_mode))
+				result += code[pos]*(number + (not number and not number_mode))
+				self.pc += (number + (not number and not number_mode))
 				number = 0
-				self.pc += (number + (number == 0 and not number_mode))
+				number_mode = False
 			elif code[pos] in self.numbers:
 				number_mode = True
 				number *= 10
@@ -122,9 +140,6 @@ class Converter:
 					if function and function[-1] == '(': raise NameError(f"The bf-function '{function[:-1]}' is not defined (pos: {pos - len(function)}).")
 					function += code[pos]
 					pos += 1
-				if self.pc not in self.stack_trace_data:
-					self.stack_trace_data[self.pc] = []
-				self.stack_trace_data[self.pc].append(function[:-1])
 				params = []
 				param = ""
 				level = 1
@@ -137,14 +152,29 @@ class Converter:
 					level -= code[pos] == ')'
 					pos += 1
 				params.append(param)
-				result += self.functions[function](params)*(number + (number == 0 and not number_mode))
-				if self.pc not in self.stack_trace_data:
-					self.stack_trace_data[self.pc] = []
-				self.stack_trace_data[self.pc].insert(0, function[:-1])
+				for _ in range(number + (not number and not number_mode)):
+					if self.pc not in self.stack_trace_data[0]:
+						self.stack_trace_data[0][self.pc] = []
+					self.stack_trace_data[0][self.pc].append(function[:-1])
+					result += self.functions[function](params)
+					if self.pc - 1 not in self.stack_trace_data[1]:
+						self.stack_trace_data[1][self.pc - 1] = []
+					self.stack_trace_data[1][self.pc - 1].insert(0, function[:-1])
 			if code[pos] not in self.numbers: number_mode = False
 			pos += 1
 		return result
 	
+	# Returns the minimum size of memory required to execute the compiled code.
+	def min_mem_size(self):
+		mx = 0
+		current = 0
+		for i in self.bf:
+			if i == '>':
+				current += 1
+				if current > mx: mx += 1
+			elif i == '<': current -= 1
+		return mx
+
 	# Repeats code x number of times: repeat(x;code)
 	def func_repeat(self, values):
 		return self.convert(values[1]*int(values[0]))
@@ -207,7 +237,6 @@ class Converter:
 	# A > 0
 	# A.
 	def func_bool(self, values):
-		#[print(i.strip()) for i in traceback.format_stack()]
 		return self.convert("[[-]>+<]addb()")
 
 	# not A
@@ -218,7 +247,7 @@ class Converter:
 	# A && B
 	# AB
 	def func_and(self, values):
-		return self.convert("repeat(2;bool()>)<<addb()>++<eqb()")
+		return self.convert(">bool()upb(0)<bool()>>downb(0)<<addb()>++<eqb()")
 
 	# A || B
 	# AB
@@ -305,4 +334,4 @@ class Converter:
 		return self.convert("10+.[-]")
 
 if __name__ == "__main__":
-	interpreter(int(input()), Converter(input()).get_bf())
+	Interpreter(Converter(input()), int(input()))
