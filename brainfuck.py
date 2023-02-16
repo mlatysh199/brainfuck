@@ -32,6 +32,7 @@ class Interpreter:
 			result += ">>> " + " > ".join(self.stack_trace_data[0][self.pc])
 		return result
 
+	# Main runner system
 	def run(self, in_tape=""):
 		length = len(self.code)
 		result = ""
@@ -101,6 +102,7 @@ class Converter:
 			"subbin8(" : self.func_subbin8,
 			"printb(" : self.func_printb,
 			"printbin8(" : self.func_printbin8,
+			"printbool(" : self.func_printbool,
 			"endl(" : self.func_endl}
 		self.commands = ['<', '>', '-', '+', '.', ',', '[', ']']
 		self.skip = [' ', '\n', '\t']
@@ -117,6 +119,7 @@ class Converter:
 	def get_stack_trace_data(self):
 		return self.stack_trace_data
 
+	# Converter system
 	def convert(self, code):
 		result = ""
 		pos = 0
@@ -173,7 +176,7 @@ class Converter:
 				current += 1
 				if current > mx: mx += 1
 			elif i == '<': current -= 1
-		return mx
+		return mx + 1
 
 	# Repeats code x number of times: repeat(x;code)
 	def func_repeat(self, values):
@@ -190,7 +193,7 @@ class Converter:
 		return self.convert("[-x<<+x>>]".replace('x', values[0]))
 
 	# B = A
-	# A<x>B..
+	# A<x>B.
 	def func_copyb(self, values):
 		return self.convert("[-x>>+>+<<x<]x>>>[-x<<<+x>>>]x<<<".replace('x', values[0]))
 
@@ -205,12 +208,12 @@ class Converter:
 		return self.convert(">[-<->]<")
 
 	# A *= B
-	# AB...
+	# AB..
 	def func_multb(self, values):
 		return self.convert(">[-<copyb(1)>]<[-]>>downb(1)<<")
 
 	# A = A/B, B = A%B
-	# AB.........
+	# AB...........
 	def func_divb(self, values):
 		return self.convert("[repeat(2;copyb(2)>)>lessb()ifel(5<upb(4)5>;3<+<copyb(4)<subb()6>downb(4)<)3<]>[-]>downb(1)3>downb(3)5<")
 
@@ -232,7 +235,7 @@ class Converter:
 	# A > B
 	# AB........
 	def func_greatb(self, values):
-		return self.convert("repeat(2;copyb(1)>)diffb()ifel(4<upb(3)>upb(3)3>lessb()not()downb(3);4<[-]>[-]3>)<<")
+		return self.convert("upb(1)repeat(2;>downb(0))<<lessb()")
 
 	# A > 0
 	# A.
@@ -245,7 +248,7 @@ class Converter:
 		return self.convert("bool()-[+>+<]addb()")
 
 	# A && B
-	# AB
+	# AB.
 	def func_and(self, values):
 		return self.convert(">bool()upb(0)<bool()>>downb(0)<<addb()>++<eqb()")
 
@@ -255,43 +258,45 @@ class Converter:
 		return self.convert("addb()bool()")
 
 	# If not cond the execute code one, otherwise code 2
-	# ?..
+	# ..?
 	def func_ifel(self, values):
 		return self.convert(f"bool()copyb(0)[->>{values[0]}<<]>-[+<+>]<[->>{values[1]}<<]")
 
 	# Constructs a byte from binary data and puts it into A
-	# ABCDEFGH.....
+	# A8.
 	def func_bin8tobyte(self, values):
 		return self.convert("[-8>128+8<]>[-7>64+7<]>[-6>32+6<]>[-5>16+5<]>[-4>8+4<]>[-3>4+3<]>[->>2+<<]>[->1+<]>downb(7)8<")
 
 	# Constructs binary information from A
-	# ABCDEFGH.......
+	# A8...........
 	def func_bytetobin8(self, values):
 		return self.convert(">128+<divb()>>64+<divb()>>32+<divb()>>16+<divb()>>8+<divb()>>4+<divb()>>2+<divb()6<")
 
 	# Moves binary information up
-	# ABCDEFGH<x>........
+	# A8<x>.
 	def func_upbin8(self, values):
-		return self.convert(f"repeat(8;upb({values[0]}>)8<)")
+		return self.convert(f"8>repeat(8;<upb({values[0]}))")
 
 	# Moves binary information down
-	# ........<x>ABCDEFGH
+	# <x>A8.
 	def func_downbin8(self, values):
-		return self.convert(f"repeat(8;downb({values[0]}>)8<)")
+		return self.convert(f"repeat(8;downb({values[0]})>)8<")
 
 	# Copies binary information
-	# ABCDEFGH<x>..........
+	# x >= 7
+	# A8<x>.
 	def func_copybin8(self, values):
-		return self.convert(f"repeat(8;copyb({values[0]}>)8<)")
+		return self.convert(f"repeat(8;copyb({values[0]})>)8<")
 
 	# Negates an 8 bit value
+	# A8.
 	def func_notbin8(self, values):
 		return self.convert("repeat(8;not()>)8<")
 
 	# A8 &= B8
-	# A8B8..
+	# A8B8...
 	def func_andbin8(self, values):
-		return self.convert("upb(15)8>upb(8)8>and()downbb(15)15<upb(14)8>upb(7)7>and()downb(14)14<upb(13)8>upb(6)6>and()downb(13)13<upb(12)8>upb(5)5>and()downb(12)12<upb(11)8>upb(4)4>and()downb(11)11<upb(10)8>upb(3)3>and()downb(10)10<upb(9)8>upb(2)2>and()downb(9)9<upb(8)8>upb(1)>and()downb(8)16<")
+		return self.convert("upb(15)8>upb(8)8>and()downb(15)15<upb(14)8>upb(7)7>and()downb(14)14<upb(13)8>upb(6)6>and()downb(13)13<upb(12)8>upb(5)5>and()downb(12)12<upb(11)8>upb(4)4>and()downb(11)11<upb(10)8>upb(3)3>and()downb(10)10<upb(9)8>upb(2)2>and()downb(9)9<upb(8)8>upb(1)>and()downb(8)16<")
 
 	# A8 |= B8
 	# A8B8..
@@ -299,34 +304,39 @@ class Converter:
 		return self.convert("upb(15)8>upb(8)8>or()downb(15)15<upb(14)8>upb(7)7>or()downb(14)14<upb(13)8>upb(6)6>or()downb(13)13<upb(12)8>upb(5)5>or()downb(12)12<upb(11)8>upb(4)4>or()downb(11)11<upb(10)8>upb(3)3>or()downb(10)10<upb(9)8>upb(2)2>or()downb(9)9<upb(8)8>upb(1)>or()downb(8)16<")
 
 	# A8 += B8
-	# A8B8..........
+	# A8B8...........
 	def func_addbin8c(self, values):
 		return self.convert("8>repeat(8;<upb(12)8>upb(8)>ifel(>>ifel(>>ifel(19<+8>+11>;11<+11>)<<;>>ifel(11<+11>;19<+19>)<<)<<;>>ifel(>>ifel(11<+11>;19<+19>)<<;>>ifel(19<+19>;)<<)<<)9<)")
 
 	# A8 += B8 (remove carry bit)
-	# A8B8..........
+	# A8B8...........
 	def func_addbin8(self, values):
 		return self.func_addbin8c(values) + self.convert("8>[-]8<")
 
 	# A8 -= B8 
-	# A8B8..........
+	# A8B8...........
 	def func_subbin8c(self, values):
 		return self.convert("8>repeat(8;<upb(12)8>upb(8)>ifel(>>ifel(>>ifel(19<+8>+11>;)<<;>>ifel(11<+11>;19<+8>+11>)<<)<<;>>ifel(>>ifel(;19<+19>)<<;>>ifel(19<+8>+11>;)<<)<<)9<)")
 
 	# A8 - B8 (remove carry bit)
-	# A8B8..........
+	# A8B8...........
 	def func_subbin8(self, values):
 		return self.func_subbin8c(values) + self.convert("8>[-]8<")
 
 	# Prints out the byte A
-	# A........
+	# A............
 	def func_printb(self, values):
 		return self.convert(">100+<divb()48+.[-]addb()>10+<divb()48+.[-]addb()48+.[-]")
 
 	# Prints out the binary information A8
-	# A8
+	# A8.
 	def func_printbin8(self, values):
 		return self.convert("repeat(8;48+.[-]>)8<")
+
+	# Prints TRUE or FALSE respectively
+	# A..
+	def func_printbool(self, values):
+		return self.convert("ifel(84+.2-.3+.16-.[-];70+.5-.11+.7+.14-.[-])")
 
 	# Prints a line change
 	# .
