@@ -68,6 +68,34 @@ class Interpreter:
 		if self.debug: print(self.__debug(' '))
 		return result
 
+# TODO comparisons for xbit numbers
+# TODO multiplication
+# TODO division
+# TODO printing xbit numbers 
+"""
+>>> int("11111111111111111111111111111111", 2)//1000000000
+4
+>>> bin(1000000000)
+'0b111011100110101100101000000000'
+>>> bin(100000000)
+'0b101111101011110000100000000'
+>>> bin(10000000)
+'0b100110001001011010000000'
+>>> bin(1000000)
+'0b11110100001001000000'
+>>> bin(100000)
+'0b11000011010100000'
+>>> bin(10000)
+'0b10011100010000'
+>>> bin(1000)
+'0b1111101000'
+>>> bin(100)
+'0b1100100'
+>>> 
+"""
+# TODO 32bit integers
+# TODO memory -> arrays -> pointers -> etc
+
 # Converts pseudo brainfuck code to brainfuck
 class Converter:
 	def __init__(self, code):
@@ -75,6 +103,9 @@ class Converter:
 			"upb(" : self.func_upb,
 			"downb(" : self.func_downb,
 			"copyb(" : self.func_copyb,
+			"upbs(" : self.func_upbs,
+			"downbs(" : self.func_downbs,
+			"copybs(" : self.func_copybs,
 			"addb(" : self.func_addb,
 			"subb(" : self.func_subb,
 			"multb(" : self.func_multb,
@@ -88,6 +119,8 @@ class Converter:
 			"and(" : self.func_and,
 			"or(" : self.func_or,
 			"ifel(" : self.func_ifel,
+			"while(" : self.func_while,
+			"for(" : self.func_for,
 			"bin8tobyte(" : self.func_bin8tobyte,
 			"bytetobin8(" : self.func_bytetobin8,
 			"upbin8(" : self.func_upbin8,
@@ -196,6 +229,21 @@ class Converter:
 	# A<x>B.
 	def func_copyb(self, values):
 		return self.convert("[-x>>+>+<<x<]x>>>[-x<<<+x>>>]x<<<".replace('x', values[0]))
+	
+	# Moves a group of variables up
+	# (A*x)<y>(B*x).
+	def func_upbs(self, values):
+		return self.convert(f"repeat({values[0]};upb({values[1]})>){values[0]}<")
+
+	# Moves a group of variables down
+	# (A*x)<y>(B*x).
+	def func_downbs(self, values):
+		return self.convert(f"repeat({values[0]};downb({values[1]})>){values[0]}<")
+
+	# Copies a group of variables
+	# (A*x)<y>(B*x).
+	def func_copybs(self, values):
+		return self.convert(f"repeat({values[0]};copyb({values[1]})>){values[0]}<")
 
 	# A += B
 	# AB
@@ -257,10 +305,20 @@ class Converter:
 	def func_or(self, values):
 		return self.convert("addb()bool()")
 
-	# If not cond the execute code one, otherwise code 2
-	# ..?
+	# If not A then execute code one, otherwise code 2
+	# A.?
 	def func_ifel(self, values):
 		return self.convert(f"bool()copyb(0)[->>{values[0]}<<]>-[+<+>]<[->>{values[1]}<<]")
+	
+	# While values[0] (where that code gives represents a condition): execute values[1]
+	# .. (because of the bool)
+	def func_while(self, values):
+		return self.convert(f"{values[0]}bool()[-{values[1]}{values[0]}bool()]")
+
+	# For i in range(A): execute values[0] 
+	# AIi? (where i is the variable you can edit)
+	def func_for(self, values):
+		return self.convert(f"[->>{values[0]}<+copyb(0)<]>[-]>[-]<<")
 
 	# Constructs a byte from binary data and puts it into A
 	# A8.
@@ -275,18 +333,18 @@ class Converter:
 	# Moves binary information up
 	# A8<x>.
 	def func_upbin8(self, values):
-		return self.convert(f"8>repeat(8;<upb({values[0]}))")
+		return self.convert(f"upbs(8;{values[0]})")
 
 	# Moves binary information down
 	# <x>A8.
 	def func_downbin8(self, values):
-		return self.convert(f"repeat(8;downb({values[0]})>)8<")
+		return self.convert(f"downbs(8;{values[0]})")
 
 	# Copies binary information
 	# x >= 7
 	# A8<x>.
 	def func_copybin8(self, values):
-		return self.convert(f"repeat(8;copyb({values[0]})>)8<")
+		return self.convert(f"copybs(8;{values[0]})")
 
 	# Negates an 8 bit value
 	# A8.
@@ -326,7 +384,7 @@ class Converter:
 	# Prints out the byte A
 	# A............
 	def func_printb(self, values):
-		return self.convert(">100+<divb()48+.[-]addb()>10+<divb()48+.[-]addb()48+.[-]")
+		return self.convert(">100+<divb()[48+.[-]]addb()>10+<divb()[48+.[-]]addb()48+.[-]")
 
 	# Prints out the binary information A8
 	# A8.
