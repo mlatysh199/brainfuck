@@ -22,14 +22,14 @@ class Interpreter:
 		result = ""
 		mem_text = list('  ' + '  '.join([str(i).rjust(3) for i in self.mem]) + '  ')
 		mem_text[5 + self.ptr*5] = '#'
-		result += f"DEBUG: {str(self.pc).rjust(4)} {ins} {str(self.ptr).rjust(3)}  [{''.join(mem_text)}]"
 		if self.pc in self.stack_trace_data[1] and (ins != ']' or not self.mem[self.ptr]):
 			for _ in range(len(self.stack_trace_data[1][self.pc])): self.stack_trace.pop()
-			result += "\nDEBUG: " + " > ".join(self.stack_trace) + " <<< " + " < ".join(self.stack_trace_data[1][self.pc])
+			result += "DEBUG: " + " > ".join(self.stack_trace) + " <<< " + " < ".join(self.stack_trace_data[1][self.pc]) + '\n'
 		elif self.pc in self.stack_trace_data[0] and (ins != '[' or len(self.stack_trace) < len(self.stack_trace_data[0][self.pc]) or self.stack_trace[-len(self.stack_trace_data[0][self.pc]):] != self.stack_trace_data[0][self.pc]):
-			result += "\nDEBUG: " + " > ".join(self.stack_trace) + ' '
+			result += "DEBUG: " + " > ".join(self.stack_trace) + ' '
 			self.stack_trace += self.stack_trace_data[0][self.pc]
-			result += ">>> " + " > ".join(self.stack_trace_data[0][self.pc])
+			result += ">>> " + " > ".join(self.stack_trace_data[0][self.pc]) + '\n'
+		result += f"DEBUG: {str(self.pc).rjust(4)} {ins} {str(self.ptr).rjust(3)}  [{''.join(mem_text)}]"
 		return result
 
 	# Main runner system
@@ -64,6 +64,7 @@ class Interpreter:
 			elif ins == ']':
 				ret = self.return_stack.pop()
 				if self.mem[self.ptr]: self.pc = ret - 1
+			if self.ptr < 0 or self.ptr >= self.size: raise MemoryError("Pointer exceeded designated memory.")
 			self.pc += 1
 		if self.debug: print(self.__debug(' '))
 		return result
@@ -106,6 +107,10 @@ class Converter:
 			"upbs(" : self.func_upbs,
 			"downbs(" : self.func_downbs,
 			"copybs(" : self.func_copybs,
+			"bool(" : self.func_bool,
+			"not(" : self.func_not,
+			"and(" : self.func_and,
+			"or(" : self.func_or,
 			"addb(" : self.func_addb,
 			"subb(" : self.func_subb,
 			"multb(" : self.func_multb,
@@ -114,13 +119,11 @@ class Converter:
 			"eqb(" : self.func_eqb,
 			"lessb(" : self.func_lessb,
 			"greatb(" : self.func_greatb,
-			"bool(" : self.func_bool,
-			"not(" : self.func_not,
-			"and(" : self.func_and,
-			"or(" : self.func_or,
 			"ifel(" : self.func_ifel,
 			"while(" : self.func_while,
-			"for(" : self.func_for,
+			"forb(" : self.func_forb,
+			"moveupb(" : self.func_moveupb,
+			"movedownb(" : self.func_movedownb,
 			"bin8tobyte(" : self.func_bin8tobyte,
 			"bytetobin8(" : self.func_bytetobin8,
 			"upbin8(" : self.func_upbin8,
@@ -136,7 +139,30 @@ class Converter:
 			"printb(" : self.func_printb,
 			"printbin8(" : self.func_printbin8,
 			"printbool(" : self.func_printbool,
-			"endl(" : self.func_endl}
+			"endl(" : self.func_endl,
+			"boolbinx(" : self.func_boolbinx,
+			"notbinx(" : self.func_notbinx,
+			"andbinx(" : self.func_andbinx,
+			"orbinx(" : self.func_orbinx,
+			"addbinx(" : self.func_addbinx,
+			"subbinx(" : self.func_subbinx,
+			"multbinx(" : self.func_multbinx,
+			"divbinx(" : self.func_divbinx,
+			"diffbbinx(" : self.func_diffbinx,
+			"eqbinx(" : self.func_eqbinx,
+			"lessbinx(" : self.func_lessbinx,
+			"greatbinx(" : self.func_greatbinx,
+			"forbinx(" : self.func_forbinx,
+			"moveupb(" : self.func_moveupb,
+			"movedownb(" : self.func_movedownb,
+			"mem(" : self.func_mem,
+			"searchup255(" : self.func_searchup255,
+			"searchdown255(" : self.func_searchdown255,
+			"sendboolup(" : self.func_sendboolup,
+			"sendbooldown(" : self.func_sendbooldown,
+			"sendbooldownaddress(" : self.func_sendbooldownaddress,
+			"writeaddressbinx(" : self.func_writeaddressbinx,
+			"movetoaddress(" : self.func_movetoaddress}
 		self.commands = ['<', '>', '-', '+', '.', ',', '[', ']']
 		self.skip = [' ', '\n', '\t']
 		self.numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
@@ -218,12 +244,12 @@ class Converter:
 	# Move byte up to x distance
 	# A<x>B
 	def func_upb(self, values):
-		return self.convert("[-x>>+x<<]".replace('x', values[0]))
+		return self.convert(f"[-{values[0]}>>+{values[0]}<<]")
 
 	# B<x>A
 	# Move byte down to x distance
 	def func_downb(self, values):
-		return self.convert("[-x<<+x>>]".replace('x', values[0]))
+		return self.convert(f"[-{values[0]}<<+{values[0]}>>]")
 
 	# B = A
 	# A<x>B.
@@ -317,7 +343,7 @@ class Converter:
 
 	# For i in range(A): execute values[0] 
 	# AIi? (where i is the variable you can edit)
-	def func_for(self, values):
+	def func_forb(self, values):
 		return self.convert(f"[->>{values[0]}<+copyb(0)<]>[-]>[-]<<")
 
 	# Constructs a byte from binary data and puts it into A
@@ -400,6 +426,91 @@ class Converter:
 	# .
 	def func_endl(self, values):
 		return self.convert("10+.[-]")
+
+	# Gets boolean value of AX
+	# AX
+	def func_boolbinx(self, values):
+		return self.convert(f"{int(values[0]) - 1}>repeat({int(values[0]) - 1};<or())")
+
+	# Gets not value of AX
+	# AX..
+	def func_notbinx(self, values):
+		return self.convert(f"{values[0]}>repeat({values[0]};<not()upb(0))>downbs(8;0)<")
+
+	# AX and BX
+	# AXBX.
+	def func_andbinx(self, values):
+		return self.convert(f"x>repeat(x;<upb({int(values[0]) - 1})x>>++<eqb()downb({int(values[0]) - 1})x<)".replace('x', values[0]))
+
+	# AX or BX
+	# AXBX.
+	def func_orbinx(self, values):
+		return self.convert(f"x>repeat(x;<upb({int(values[0]) - 1})x>bool()downb({int(values[0]) - 1})x<)".replace('x', values[0]))
+	
+	def func_addbinx(self, values):
+		return self.convert("")
+
+	def func_subbinx(self, values):
+		return self.convert("")
+
+	def func_multbinx(self, values):
+		return self.convert("")
+	
+	def func_divbinx(self, values):
+		return self.convert("")
+
+	def func_diffbinx(self, values):
+		return self.convert("")
+
+	def func_eqbinx(self, values):
+		return self.convert("")
+	
+	def func_lessbinx(self, values):
+		return self.convert("")
+	
+	def func_greatbinx(self, values):
+		return self.convert("")
+	
+	def func_forbinx(self, values):
+		return self.convert("")
+
+	def func_moveupb(self, values):
+		return self.convert("[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[->]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]")
+	
+	def func_movedownb(self, values):
+		return self.convert("[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]")
+
+	# Initiates memory system
+	# First bit/byte is saved for memory travel outpost
+	# Second bit/byte is saved for binary transfer data
+	# Next values[0] bits/bytes are the memory address size
+	# Each value stored in memory has 3 extra spaces to permit copies plus position data
+	# values[1] determines the number of memory bit/byte cells
+
+	def func_mem(self, values):
+		return self.convert(f"-{2 + int(values[0])*2 + int(values[1])*4}>")
+
+	def func_searchup255(self, values):
+		return self.convert(">+[->+]-")
+
+	def func_searchdown255(self, values):
+		return self.convert("<+[-<+]-")
+	
+	def func_sendboolup(self, values):
+		return self.convert("copy(0)>ifel(-searchup255()++searchdown255()+;-searchup255()+searchdown255()+)")
+	
+	def func_sendbooldown(self, values):
+		return self.convert("ifel(-searchdown255()++searchup255()+;-searchdown255()+searchup255()+)")
+	
+	def func_sendbooldownaddress(self, values):
+		return self.convert("ifel(-searchdown255()++<->searchup255()+;-searchdown255()+<->searchup255()+)")
+
+	# AX......
+	def func_writeaddressbinx(self, values):
+		return self.convert(f"{values[0]}>-searchdown255()+{values[0]}>-searchup255()+repeat({values[0]};<sendbooldownaddress())")
+
+	def func_movetoaddress(self, values):
+		return self.convert(f">{int(values[0])*2}>+")
 
 if __name__ == "__main__":
 	Interpreter(Converter(input()), int(input()))
