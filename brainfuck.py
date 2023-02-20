@@ -1,7 +1,8 @@
 # Runs brainfuck code
 class Interpreter:
-	def __init__(self, converter, size, debug=False):
-		if size < converter.min_mem_size(): raise IndexError(f"This program requires at least {converter.min_mem_size()} units of memory.")
+	def __init__(self, converter, debug=False, size=None):
+		if not size: size = converter.min_mem_size()
+		elif size < converter.min_mem_size(): raise IndexError(f"This program requires at least {converter.min_mem_size()} units of memory.")
 		self.debug = debug
 		self.code = converter.get_bf()
 		self.stack_trace_data = converter.get_stack_trace_data()
@@ -126,16 +127,6 @@ class Converter:
 			"movedownb(" : self.func_movedownb,
 			"bin8tobyte(" : self.func_bin8tobyte,
 			"bytetobin8(" : self.func_bytetobin8,
-			"upbin8(" : self.func_upbin8,
-			"downbin8(" : self.func_downbin8,
-			"copybin8(" : self.func_copybin8,
-			"notbin8(" : self.func_notbin8,
-			"andbin8(" : self.func_andbin8,
-			"orbin8(" : self.func_orbin8,
-			"addbin8c(" : self.func_addbin8c,
-			"addbin8(" : self.func_addbin8,
-			"subbin8c(" : self.func_subbin8c,
-			"subbin8(" : self.func_subbin8,
 			"printb(" : self.func_printb,
 			"printbin8(" : self.func_printbin8,
 			"printbool(" : self.func_printbool,
@@ -161,8 +152,15 @@ class Converter:
 			"sendboolup(" : self.func_sendboolup,
 			"sendbooldown(" : self.func_sendbooldown,
 			"sendbooldownaddress(" : self.func_sendbooldownaddress,
-			"writeaddressbinx(" : self.func_writeaddressbinx,
-			"movetoaddress(" : self.func_movetoaddress}
+			"writeaddress(" : self.func_writeaddress,
+			"movetoaddress(" : self.func_movetoaddress,
+			"movetonextmem(" : self.func_movetonextmem,
+			"movetoprevmem(" : self.func_movetoprevmem,
+			"endmemaccess(" : self.func_endmemaccess,
+			"loadbinx(" : self.func_loadbinx,
+			"savebinx(" : self.func_savebinx}
+		self.has_memory = False
+		self.memory_address_size = 0
 		self.commands = ['<', '>', '-', '+', '.', ',', '[', ']']
 		self.skip = [' ', '\n', '\t']
 		self.numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
@@ -235,7 +233,7 @@ class Converter:
 				current += 1
 				if current > mx: mx += 1
 			elif i == '<': current -= 1
-		return mx + 1
+		return mx + 1 - self.has_memory*(8 + 7*self.memory_address_size)
 
 	# Repeats code x number of times: repeat(x;code)
 	def func_repeat(self, values):
@@ -356,57 +354,6 @@ class Converter:
 	def func_bytetobin8(self, values):
 		return self.convert(">128+<divb()>>64+<divb()>>32+<divb()>>16+<divb()>>8+<divb()>>4+<divb()>>2+<divb()6<")
 
-	# Moves binary information up
-	# A8<x>.
-	def func_upbin8(self, values):
-		return self.convert(f"upbs(8;{values[0]})")
-
-	# Moves binary information down
-	# <x>A8.
-	def func_downbin8(self, values):
-		return self.convert(f"downbs(8;{values[0]})")
-
-	# Copies binary information
-	# x >= 7
-	# A8<x>.
-	def func_copybin8(self, values):
-		return self.convert(f"copybs(8;{values[0]})")
-
-	# Negates an 8 bit value
-	# A8.
-	def func_notbin8(self, values):
-		return self.convert("repeat(8;not()>)8<")
-
-	# A8 &= B8
-	# A8B8...
-	def func_andbin8(self, values):
-		return self.convert("upb(15)8>upb(8)8>and()downb(15)15<upb(14)8>upb(7)7>and()downb(14)14<upb(13)8>upb(6)6>and()downb(13)13<upb(12)8>upb(5)5>and()downb(12)12<upb(11)8>upb(4)4>and()downb(11)11<upb(10)8>upb(3)3>and()downb(10)10<upb(9)8>upb(2)2>and()downb(9)9<upb(8)8>upb(1)>and()downb(8)16<")
-
-	# A8 |= B8
-	# A8B8..
-	def func_orbin8(self, values):
-		return self.convert("upb(15)8>upb(8)8>or()downb(15)15<upb(14)8>upb(7)7>or()downb(14)14<upb(13)8>upb(6)6>or()downb(13)13<upb(12)8>upb(5)5>or()downb(12)12<upb(11)8>upb(4)4>or()downb(11)11<upb(10)8>upb(3)3>or()downb(10)10<upb(9)8>upb(2)2>or()downb(9)9<upb(8)8>upb(1)>or()downb(8)16<")
-
-	# A8 += B8
-	# A8B8...........
-	def func_addbin8c(self, values):
-		return self.convert("8>repeat(8;<upb(12)8>upb(8)>ifel(>>ifel(>>ifel(19<+8>+11>;11<+11>)<<;>>ifel(11<+11>;19<+19>)<<)<<;>>ifel(>>ifel(11<+11>;19<+19>)<<;>>ifel(19<+19>;)<<)<<)9<)")
-
-	# A8 += B8 (remove carry bit)
-	# A8B8...........
-	def func_addbin8(self, values):
-		return self.func_addbin8c(values) + self.convert("8>[-]8<")
-
-	# A8 -= B8 
-	# A8B8...........
-	def func_subbin8c(self, values):
-		return self.convert("8>repeat(8;<upb(12)8>upb(8)>ifel(>>ifel(>>ifel(19<+8>+11>;)<<;>>ifel(11<+11>;19<+8>+11>)<<)<<;>>ifel(>>ifel(;19<+19>)<<;>>ifel(19<+8>+11>;)<<)<<)9<)")
-
-	# A8 - B8 (remove carry bit)
-	# A8B8...........
-	def func_subbin8(self, values):
-		return self.func_subbin8c(values) + self.convert("8>[-]8<")
-
 	# Prints out the byte A
 	# A............
 	def func_printb(self, values):
@@ -447,11 +394,23 @@ class Converter:
 	def func_orbinx(self, values):
 		return self.convert(f"x>repeat(x;<upb({int(values[0]) - 1})x>bool()downb({int(values[0]) - 1})x<)".replace('x', values[0]))
 	
+	# AXBX...........
 	def func_addbinx(self, values):
-		return self.convert("")
+		p0 = int(values[0])
+		p1 = int(values[0]) + 1
+		p3 = int(values[0]) + 3
+		p4 = int(values[0]) + 4
+		p11 = int(values[0]) + 11
+		return self.convert(f"{p0}>repeat({p0};<upb({p4}){p0}>upb({p0})>ifel(>>ifel(>>ifel({p11}<+{p0}>+{p3}>;{p3}<+{p3}>)<<;>>ifel({p3}<+{p3}>;{p11}<+{p11}>)<<)<<;>>ifel(>>ifel({p3}<+{p3}>;{p11}<+{p11}>)<<;>>ifel({p11}<+{p11}>;)<<)<<){p1}<){p0}>[-]{p0}<")
 
+	# AXBX...........
 	def func_subbinx(self, values):
-		return self.convert("")
+		p0 = int(values[0])
+		p1 = int(values[0]) + 1
+		p3 = int(values[0]) + 3
+		p4 = int(values[0]) + 4
+		p11 = int(values[0]) + 11
+		return self.convert(f"{p0}>repeat({p0};<upb({p4}){p0}>upb({p0})>ifel(>>ifel(>>ifel({p11}<+{p0}>+{p3}>;)<<;>>ifel({p3}<+{p3}>;{p11}<+{p0}>+{p3}>)<<)<<;>>ifel(>>ifel(;{p11}<+{p11}>)<<;>>ifel({p11}<+{p0}>+{p3}>;)<<)<<){p1}<)")
 
 	def func_multbinx(self, values):
 		return self.convert("")
@@ -482,35 +441,83 @@ class Converter:
 
 	# Initiates memory system
 	# First bit/byte is saved for memory travel outpost
-	# Second bit/byte is saved for binary transfer data
-	# Next values[0] bits/bytes are the memory address size
+	# Next values[0]*2 + 11 bits/bytes are the memory address size plus the space needed to use the address
 	# Each value stored in memory has 3 extra spaces to permit copies plus position data
 	# values[1] determines the number of memory bit/byte cells
-
 	def func_mem(self, values):
-		return self.convert(f"-{2 + int(values[0])*2 + int(values[1])*4}>")
+		self.memory_address_size = int(values[0])
+		self.has_memory = True
+		return self.convert(f"-{1 + int(values[0])*2 + 11 + int(values[1])*4}>")
 
+	# Looks up to find a cell equal to 255
 	def func_searchup255(self, values):
+		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(">+[->+]-")
 
+	# Looks down to find a cell equal to 255
 	def func_searchdown255(self, values):
+		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("<+[-<+]-")
 	
+	# Sends a boolean up from memory
+	# (no idea how to format this stack descriptor)
 	def func_sendboolup(self, values):
-		return self.convert("copy(0)>ifel(-searchup255()++searchdown255()+;-searchup255()+searchdown255()+)")
-	
+		if not self.has_memory: raise MemoryError("Memory was never initiated.")
+		return self.convert("+3<copyb(0)>ifel(-searchup255()++>-searchdown255();-searchup255()+>-searchdown255())>>")
+
+	# Sends a boolean down to memory (if positioning is loaded)
+	# A..
 	def func_sendbooldown(self, values):
-		return self.convert("ifel(-searchdown255()++searchup255()+;-searchdown255()+searchup255()+)")
-	
+		if not self.has_memory: raise MemoryError("Memory was never initiated.")
+		return self.convert("ifel(-searchdown255()+3<[-]+<-4>searchup255()+;-searchdown255()+3<[-]<-4>searchup255()+)")
+
+	# Sends a boolean down to the memory address section
+	# A..
 	def func_sendbooldownaddress(self, values):
+		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("ifel(-searchdown255()++<->searchup255()+;-searchdown255()+<->searchup255()+)")
 
-	# AX......
-	def func_writeaddressbinx(self, values):
-		return self.convert(f"{values[0]}>-searchdown255()+{values[0]}>-searchup255()+repeat({values[0]};<sendbooldownaddress())")
+	# Moves an address down to be loaded into the memory address
+	# AY.. (y is the default memory address size)
+	def func_writeaddress(self, values):
+		if not self.has_memory: raise MemoryError("Memory was never initiated.")
+		return self.convert(f"{self.memory_address_size}>-searchdown255()+{self.memory_address_size}>-searchup255()+repeat({self.memory_address_size};<sendbooldownaddress())")
 
+	# Uses the loaded pointer to find the respective position in memory
+	#0
 	def func_movetoaddress(self, values):
-		return self.convert(f">{int(values[0])*2}>+")
+		if not self.has_memory: raise MemoryError("Memory was never initiated.")
+		return self.convert(f"-searchdown255()>{self.memory_address_size}>{self.memory_address_size}>11>-searchdown255()while(>copybs({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})searchup255()+4>-searchdown255())searchup255()searchup255()+")
+
+	# Move the memory pointer right
+	#0
+	def func_movetonextmem(self, values):
+		if not self.has_memory: raise MemoryError("Memory was never initiated.")
+		return self.convert("-searchdown255()+4>-searchup255()+")
+
+	# Move the memory pointer left
+	#0
+	def func_movetoprevmem(self, values):
+		if not self.has_memory: raise MemoryError("Memory was never initiated.")
+		return self.convert("-searchdown255()+4<-searchup255()+")
+	
+	# Ends access to memory
+	#0
+	def func_endmemaccess(self, values):
+		if not self.has_memory: raise MemoryError("Memory was never initiated.")
+		return self.convert("-searchdown255()+searchup255()+")
+
+	# Reads binx from address BY
+	# max(BY, binx)
+	def func_loadbinx(self, values):
+		if not self.has_memory: raise MemoryError("Memory was never initiated.")
+		return self.convert(f"writeaddress()movetoaddress()-searchdown255()repeat({values[0]};sendboolup()+4>-)+searchup255()+{values[0]}<")
+	
+	# Saves AX to address BY
+	# AXBY..
+	def func_savebinx(self, values):
+		if not self.has_memory: raise MemoryError("Memory was never initiated.")
+		return self.convert(f"{values[0]}>writeaddress()movetoaddress()-searchdown255()repeat({int(values[0]) - 1};+4>-)searchup255()+repeat({values[0]};<sendbooldown())endmemaccess()")
 
 if __name__ == "__main__":
-	Interpreter(Converter(input()), int(input()))
+	Interpreter(Converter(input()))
