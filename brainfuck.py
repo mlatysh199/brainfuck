@@ -36,7 +36,7 @@ class Interpreter:
 		return result
 
 	# Main runner system
-	def run(self, in_tape="", wait_for_tape=True):
+	def run(self, in_tape=""):
 		length = len(self.code)
 		result = ""
 		while self.pc < length:
@@ -157,13 +157,16 @@ class Converter:
 			"movetoaddress(" : self.func_movetoaddress,
 			"sendboolmemdownaddress(" : self.func_sendboolmemdownaddress,
 			"addmemprefix(" : self.func_addmemprefix,
+			"movememprefix(" : self.func_movememprefix,
 			"movetonextmeminternal(" : self.func_movetonextmeminternal,
 			"movetoprevmeminternal(" : self.func_movetoprevmeminternal,
 			"movetonextmem(" : self.func_movetonextmem,
 			"movetoprevmem(" : self.func_movetoprevmem,
 			"endmemaccess(" : self.func_endmemaccess,
 			"loadbinx(" : self.func_loadbinx,
-			"savebinx(" : self.func_savebinx}
+			"savebinx(" : self.func_savebinx,
+			"mallocbinx(" : self.func_mallocbinx,
+			"free(" : self.func_free}
 		self.has_memory = False
 		self.memory_address_size = 0
 		self.commands = ['<', '>', '-', '+', '.', ',', '[', ']']
@@ -502,13 +505,13 @@ class Converter:
 
 	def func_movememprefix(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
-		return self.convert(f"searchdown255()>-repeat({self.memory_address_size};movetonextmeminternal()sendboolmemdownaddress())searchdown255()+searchup255()repeat({self.memory_address_size};movetoprevmeminternal())")
+		return self.convert(f"searchdown255()>-searchup255()repeat({self.memory_address_size};movetonextmeminternal()sendboolmemdownaddress())searchdown255()+searchup255()repeat({self.memory_address_size};movetoprevmeminternal())")
 
 	# Uses the loaded pointer to find the respective position in memory
 	#0
 	def func_movetoaddress(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
-		return self.convert(f"-searchdown255()>{self.memory_address_size}>{self.memory_address_size}>11>-searchdown255()while(>copybs({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})searchup255()movetonextmeminternal()searchdown255())searchup255()searchup255()+")
+		return self.convert(f"-searchdown255()>{self.memory_address_size}>{self.memory_address_size}>14>-searchdown255()while(>copybs({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})searchup255()movetonextmeminternal()searchdown255())searchup255()searchup255()+")
 
 	# Move the memory pointer right
 	#0
@@ -562,7 +565,7 @@ class Converter:
 	# AY..
 	def func_free(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
-		return self.convert(f"writeaddress()movetoaddress()-searchdown255()movememprefix()repeat({self.memory_address_size - 1};movetonextmeminternal())movetonextmeminternal()searchdown255()while(>copybs({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})2searchup255()movetonextmeminternal()3<[-]3>2searchdown255())2searchup255()+searchdown()2movetonextmeminternal()repeat({self.memory_address_size + 1};movetoprevmeminternal()3<[-]3>)+searchup255()+")
+		return self.convert(f"writeaddress()movetoaddress()-searchdown255()movememprefix()repeat({self.memory_address_size - 1};movetonextmeminternal())4>-searchdown255()searchdown255()while(>copybs({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})2searchup255()movetonextmeminternal()3<[-]3>2searchdown255())2searchup255()+searchdown255()2movetonextmeminternal()repeat({self.memory_address_size + 1};movetoprevmeminternal()3<[-]3>)+searchup255()+")
 
 if __name__ == "__main__":
 	Interpreter(Converter(input())).run()
