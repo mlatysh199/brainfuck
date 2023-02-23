@@ -402,23 +402,19 @@ class Converter:
 	def func_orbinx(self, values):
 		return self.convert(f"x>repeat(x;<upb({int(values[0]) - 1})x>bool()downb({int(values[0]) - 1})x<)".replace('x', values[0]))
 	
-	# AXBX...........
+	# AX += BX
+	# AXBX.........
 	def func_addbinx(self, values):
-		p0 = int(values[0])
-		p1 = int(values[0]) + 1
-		p3 = int(values[0]) + 3
-		p4 = int(values[0]) + 4
-		p11 = int(values[0]) + 11
-		return self.convert(f"{p0}>repeat({p0};<upb({p4}){p0}>upb({p0})>ifel(>>ifel(>>ifel({p11}<+{p0}>+{p3}>;{p3}<+{p3}>)<<;>>ifel({p3}<+{p3}>;{p11}<+{p11}>)<<)<<;>>ifel(>>ifel({p3}<+{p3}>;{p11}<+{p11}>)<<;>>ifel({p11}<+{p11}>;)<<)<<){p1}<){p0}>[-]{p0}<")
+		x = int(values[0])
+		x1 = x + 9
+		return self.convert(f"{x}>repeat({x};<upb({x+3}){x}>upb({6})>ifel(>ifel(>ifel(9<+{x}<+{x1}>;9<+9>)<;>ifel(9<+9>;{x1}<+{x1}>)<)<;>ifel(>ifel(9<+9>;{x1}<+{x1}>)<;>ifel({x1}<+{x1}>;)<)<){x + 1}<){x}>[-]{x}<")
 
-	# AXBX...........
+	# AX -= BX
+	# AXBX.........
 	def func_subbinx(self, values):
-		p0 = int(values[0])
-		p1 = p0 + 1
-		p3 = p0 + 3
-		p4 = p0 + 4
-		p11 = p0 + 11
-		return self.convert(f"{p0}>repeat({p0};<upb({p4}){p0}>upb({p0})>ifel(>>ifel(>>ifel({p11}<+{p0}>+{p3}>;)<<;>>ifel({p3}<+{p3}>;{p11}<+{p0}>+{p3}>)<<)<<;>>ifel(>>ifel(;{p11}<+{p11}>)<<;>>ifel({p11}<+{p0}>+{p3}>;)<<)<<){p1}<)")
+		x = int(values[0])
+		x1 = x + 9
+		return self.convert(f"{x}>repeat({x};<upb({x+3}){x}>upb({6})>ifel(>ifel(>ifel(9<+{x}<+{x1}>;)<;>ifel(9<+9>;9<+{x}<+{x1}>)<)<;>ifel(>ifel(;{x1}<+{x1}>)<;>ifel(9<+{x}<+{x1}>;)<)<){x + 1}<){x}>[-]{x}<")
 
 	def func_multbinx(self, values):
 		return self.convert("")
@@ -457,7 +453,7 @@ class Converter:
 	def func_mem(self, values):
 		self.memory_address_size = int(values[0])
 		self.has_memory = True
-		return self.convert(f"-{1 + int(values[0])*2 + 11 + int(values[1])*4}>")
+		return self.convert(f"-{1 + int(values[0])*2 + 9 + int(values[1])*4}>")
 
 	# Looks up to find a cell equal to 255
 	def func_searchup255(self, values):
