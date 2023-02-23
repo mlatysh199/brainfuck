@@ -228,7 +228,9 @@ class Converter:
 					if self.pc - 1 not in self.stack_trace_data[1]:
 						self.stack_trace_data[1][self.pc - 1] = []
 					self.stack_trace_data[1][self.pc - 1].insert(0, function[:-1])
-			if code[pos] not in self.numbers: number_mode = False
+			if code[pos] not in self.numbers:
+				number = 0
+				number_mode = False
 			pos += 1
 		return result
 	
@@ -507,7 +509,7 @@ class Converter:
 	#0
 	def func_movetoaddress(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
-		return self.convert(f"-searchdown255()>{self.memory_address_size}>{self.memory_address_size}>14>-searchdown255()while(>copybs({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})searchup255()movetonextmeminternal()searchdown255())searchup255()searchup255()+")
+		return self.convert(f"-searchdown255()>{self.memory_address_size}>{self.memory_address_size}>9>3>-searchdown255()while(>copybs({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})searchup255()movetonextmeminternal()searchdown255())searchup255()searchup255()+")
 
 	# Move the memory pointer right
 	#0
