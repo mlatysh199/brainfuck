@@ -106,9 +106,9 @@ class Converter:
 			"upb(" : self.func_upb,
 			"downb(" : self.func_downb,
 			"copyb(" : self.func_copyb,
-			"upbs(" : self.func_upbs,
-			"downbs(" : self.func_downbs,
-			"copybs(" : self.func_copybs,
+			"upbinx(" : self.func_upbinx,
+			"downbinx(" : self.func_downbinx,
+			"copybinx(" : self.func_copybinx,
 			"bool(" : self.func_bool,
 			"not(" : self.func_not,
 			"and(" : self.func_and,
@@ -132,6 +132,7 @@ class Converter:
 			"printbin8(" : self.func_printbin8,
 			"printbool(" : self.func_printbool,
 			"endl(" : self.func_endl,
+			"cleanbinx(" : self.func_cleanbinx,
 			"boolbinx(" : self.func_boolbinx,
 			"notbinx(" : self.func_notbinx,
 			"andbinx(" : self.func_andbinx,
@@ -266,17 +267,17 @@ class Converter:
 	
 	# Moves a group of variables up
 	# (A*x)<y>(B*x).
-	def func_upbs(self, values):
+	def func_upbinx(self, values):
 		return self.convert(f"repeat({values[0]};upb({values[1]})>){values[0]}<")
 
 	# Moves a group of variables down
 	# (A*x)<y>(B*x).
-	def func_downbs(self, values):
+	def func_downbinx(self, values):
 		return self.convert(f"repeat({values[0]};downb({values[1]})>){values[0]}<")
 
 	# Copies a group of variables
 	# (A*x)<y>(B*x).
-	def func_copybs(self, values):
+	def func_copybinx(self, values):
 		return self.convert(f"repeat({values[0]};copyb({values[1]})>){values[0]}<")
 
 	# A += B
@@ -342,7 +343,7 @@ class Converter:
 	# If not A then execute code one, otherwise code 2
 	# A.?
 	def func_ifel(self, values):
-		return self.convert(f"bool()copyb(0)[->>{values[0]}<<]>-[+<+>]<[->>{values[1]}<<]")
+		return self.convert(f"bool()[->>{values[0]}<+<]->downb(0)<[+>>{values[1]}<<]")
 	
 	# While values[0] (where that code gives represents a condition): execute values[1]
 	# .. (because of the bool)
@@ -384,6 +385,11 @@ class Converter:
 	def func_endl(self, values):
 		return self.convert("10+.[-]")
 
+	# Sets a binx value to 0
+	# AX.
+	def func_cleanbinx(self, values):
+		return self.convert(f"repeat({values[0]};[-]>){values[0]}<")
+
 	# Gets boolean value of AX
 	# AX
 	def func_boolbinx(self, values):
@@ -392,7 +398,7 @@ class Converter:
 	# Gets not value of AX
 	# AX..
 	def func_notbinx(self, values):
-		return self.convert(f"{values[0]}>repeat({values[0]};<not()upb(0))>downbs(8;0)<")
+		return self.convert(f"{values[0]}>repeat({values[0]};<not()upb(0))>downbinx(8;0)<")
 
 	# AX and BX
 	# AXBX.
@@ -509,7 +515,7 @@ class Converter:
 	#0
 	def func_movetoaddress(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
-		return self.convert(f"-searchdown255()>{self.memory_address_size}>{self.memory_address_size}>9>3>-searchdown255()while(>copybs({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})searchup255()movetonextmeminternal()searchdown255())searchup255()searchup255()+")
+		return self.convert(f"-searchdown255()>{self.memory_address_size}>{self.memory_address_size}>9>3>-searchdown255()while(>copybinx({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})searchup255()movetonextmeminternal()searchdown255())searchup255()searchup255()+")
 
 	# Move the memory pointer right
 	#0
@@ -557,13 +563,37 @@ class Converter:
 	# .Y (ie, empty stack input for the placement of the pointer) (specify in the params the size that is required)
 	def func_mallocbinx(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
-		return self.convert("")
+		binary1 = bin(self.memory_address_size)[2:]
+		binary1 = '0'*(self.memory_address_size - len(binary1)) + binary1
+		binary2 = bin(int(values[0]))[2:]
+		binary2 = '0'*(self.memory_address_size - len(binary2)) + binary2
+		writebin1 = ''.join([f">[-]{i}+" for i in binary1])
+		writebin2 = ''.join([f"4>[-]{i}+" for i in binary2])
+		code = f"""# Prepare
+-searchdown255()>{2*self.memory_address_size}>9>3>
+# While we have not found a space, go up.
+while(3<copyb(0)>ifel(
+		# If current space is 1, get the size of the memory chunk and jump over it
+		# Jump over initial part
+		-searchup255(){self.memory_address_size}>{writebin1}{self.memory_address_size*2}<>addbinx({self.memory_address_size})<searchdown255()
+		# Add on the rest
+		movememprefix()repeat({self.memory_address_size - 1};movetonextmeminternal())4>-2searchdown255()while(>copybinx({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})2searchup255()movetonextmeminternal()
+			# Add one to the positioning
+			searchup255(){self.memory_address_size*2}>+{self.memory_address_size*2}<>addbinx({self.memory_address_size})<searchdown255()
+		2searchdown255())searchup255()+searchup255()-
+		# If current space is 0, check if has enough space for another memory chunk
+		;<->repeat({self.memory_address_size};4>)-repeat({values[0]};movetonextmeminternal()+3<copyb(0)>ifel(-searchdown255()>[-]+searchup255();-))2>+searchdown255()+>)2>
+	# Sum one to the malloced address
+	;-searchup255(){self.memory_address_size*2}>+{self.memory_address_size*2}<>addbinx({self.memory_address_size})<searchdown255()movetonextmeminternal()+)
+# Write the size data to indicate the size of the new memory chunk
+3<+{writebin2}searchup255()+>downbinx({self.memory_address_size};0)<"""
+		return self.convert(code)
 	
 	# Frees the memory chunk
 	# AY..
 	def func_free(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
-		return self.convert(f"writeaddress()movetoaddress()-searchdown255()movememprefix()repeat({self.memory_address_size - 1};movetonextmeminternal())4>-searchdown255()searchdown255()while(>copybs({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})2searchup255()movetonextmeminternal()3<[-]3>2searchdown255())2searchup255()+searchdown255()2movetonextmeminternal()repeat({self.memory_address_size + 1};movetoprevmeminternal()3<[-]3>)+searchup255()+")
+		return self.convert(f"writeaddress()movetoaddress()-searchdown255()movememprefix()repeat({self.memory_address_size - 1};movetonextmeminternal())4>-2searchdown255()while(>copybinx({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})2searchup255()movetonextmeminternal()3<[-]3>2searchdown255())2searchup255()+searchdown255()2movetonextmeminternal()repeat({self.memory_address_size + 1};movetoprevmeminternal()3<[-]3>)+searchup255()+")
 
 if __name__ == "__main__":
 	Interpreter(Converter(input())).run()
