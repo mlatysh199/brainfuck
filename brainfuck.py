@@ -8,7 +8,6 @@ class Interpreter:
 		self.debug = debug
 		self.code = converter.get_bf()
 		self.stack_trace_data = converter.get_stack_trace_data()
-		print(self.stack_trace_data)
 		self.size = size
 		self.reset()
 
@@ -102,7 +101,7 @@ class Interpreter:
 
 # Converts pseudo brainfuck code to brainfuck
 class Converter:
-	placeholders = ["while_run(", "while_bool(", "repeat(", "ifel_true(", "ifel_false("]
+	placeholder_macros = ["while_run(", "while_bool(", "repeat(", "ifel_true(", "ifel_false("]
 	commands = ['<', '>', '-', '+', '.', ',', '[', ']']
 	skip = [' ', '\n', '\t']
 	numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
@@ -228,7 +227,7 @@ class Converter:
 					level -= code[pos] == ')'
 					pos += 1
 				params.append(param)
-				if macro not in self.placeholders or params[0]:
+				if macro not in self.placeholder_macros or params[0]:
 					for i in range(number + (not number and not number_mode)):
 						if self.pc not in self.stack_trace_data[0]:
 							self.stack_trace_data[0][self.pc] = []
@@ -590,7 +589,7 @@ while(<copyb(0)>ifel(
 			searchup255(){self.memory_address_size*2}>+{self.memory_address_size*2}<>addbinx({self.memory_address_size})<searchdown255()
 		2searchdown255())searchup255()+searchup255()2+
 		# If current space is 0, check if has enough space for another memory chunk
-		;<->{self.memory_address_size}repeat(4>)-{values[0]}repeat(movetonextmeminternal()+3<copyb(0)>ifel(-searchdown255()>[-]+searchup255();-))2>+searchdown255()+>)2>downb(1)2<
+		;<->{self.memory_address_size}repeat(4>)-{values[0]}repeat(movetonextmeminternal()+3<copyb(0)>ifel(-searchdown255()>[-]+searchup255();-)2>)+searchdown255()+>)2>downb(1)2<
 	# Sum one to the malloced address
 	;2>-searchup255(){self.memory_address_size*2}>+{self.memory_address_size*2}<>addbinx({self.memory_address_size})<searchdown255()movetonextmeminternal()+2<)
 # Write the size data to indicate the size of the new memory chunk
