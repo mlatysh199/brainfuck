@@ -4,7 +4,7 @@ import sys
 class Interpreter:
 	def __init__(self, converter, debug=False, size=None):
 		if not size: size = converter.min_mem_size()
-		elif size < converter.min_mem_size(): raise IndexError(f"This program requires at least {converter.min_mem_size()} units of memory.")
+		#elif size < converter.min_mem_size(): raise IndexError(f"This program requires at least {converter.min_mem_size()} units of memory.")
 		self.debug = debug
 		self.code = converter.get_bf()
 		self.stack_trace_data = converter.get_stack_trace_data()
@@ -102,72 +102,72 @@ class Interpreter:
 # Converts pseudo brainfuck code to brainfuck
 class Converter:
 	def __init__(self, code):
-		self.functions = {"repeat(" : self.func_repeat,
-			"upb(" : self.func_upb,
-			"downb(" : self.func_downb,
-			"copyb(" : self.func_copyb,
-			"upbinx(" : self.func_upbinx,
-			"downbinx(" : self.func_downbinx,
-			"copybinx(" : self.func_copybinx,
-			"bool(" : self.func_bool,
-			"not(" : self.func_not,
-			"and(" : self.func_and,
-			"or(" : self.func_or,
-			"addb(" : self.func_addb,
-			"subb(" : self.func_subb,
-			"multb(" : self.func_multb,
-			"divb(" : self.func_divb,
-			"diffb(" : self.func_diffb,
-			"eqb(" : self.func_eqb,
-			"lessb(" : self.func_lessb,
-			"greatb(" : self.func_greatb,
-			"ifel(" : self.func_ifel,
-			"while(" : self.func_while,
-			"forb(" : self.func_forb,
-			"moveupb(" : self.func_moveupb,
-			"movedownb(" : self.func_movedownb,
-			"bin8tobyte(" : self.func_bin8tobyte,
-			"bytetobin8(" : self.func_bytetobin8,
-			"printb(" : self.func_printb,
-			"printbin8(" : self.func_printbin8,
-			"printbool(" : self.func_printbool,
-			"endl(" : self.func_endl,
-			"cleanbinx(" : self.func_cleanbinx,
-			"boolbinx(" : self.func_boolbinx,
-			"notbinx(" : self.func_notbinx,
-			"andbinx(" : self.func_andbinx,
-			"orbinx(" : self.func_orbinx,
-			"addbinx(" : self.func_addbinx,
-			"subbinx(" : self.func_subbinx,
-			"multbinx(" : self.func_multbinx,
-			"divbinx(" : self.func_divbinx,
-			"diffbbinx(" : self.func_diffbinx,
-			"eqbinx(" : self.func_eqbinx,
-			"lessbinx(" : self.func_lessbinx,
-			"greatbinx(" : self.func_greatbinx,
-			"forbinx(" : self.func_forbinx,
-			"moveupb(" : self.func_moveupb,
-			"movedownb(" : self.func_movedownb,
-			"mem(" : self.func_mem,
-			"searchup255(" : self.func_searchup255,
-			"searchdown255(" : self.func_searchdown255,
-			"sendboolup(" : self.func_sendboolup,
-			"sendbooldown(" : self.func_sendbooldown,
-			"sendbooldownaddress(" : self.func_sendbooldownaddress,
-			"writeaddress(" : self.func_writeaddress,
-			"movetoaddress(" : self.func_movetoaddress,
-			"sendboolmemdownaddress(" : self.func_sendboolmemdownaddress,
-			"addmemprefix(" : self.func_addmemprefix,
-			"movememprefix(" : self.func_movememprefix,
-			"movetonextmeminternal(" : self.func_movetonextmeminternal,
-			"movetoprevmeminternal(" : self.func_movetoprevmeminternal,
-			"movetonextmem(" : self.func_movetonextmem,
-			"movetoprevmem(" : self.func_movetoprevmem,
-			"endmemaccess(" : self.func_endmemaccess,
-			"loadbinx(" : self.func_loadbinx,
-			"savebinx(" : self.func_savebinx,
-			"mallocbinx(" : self.func_mallocbinx,
-			"free(" : self.func_free}
+		self.functions = {"repeat(" : self.mac_repeat,
+			"upb(" : self.mac_upb,
+			"downb(" : self.mac_downb,
+			"copyb(" : self.mac_copyb,
+			"upbinx(" : self.mac_upbinx,
+			"downbinx(" : self.mac_downbinx,
+			"copybinx(" : self.mac_copybinx,
+			"bool(" : self.mac_bool,
+			"not(" : self.mac_not,
+			"and(" : self.mac_and,
+			"or(" : self.mac_or,
+			"addb(" : self.mac_addb,
+			"subb(" : self.mac_subb,
+			"multb(" : self.mac_multb,
+			"divb(" : self.mac_divb,
+			"diffb(" : self.mac_diffb,
+			"eqb(" : self.mac_eqb,
+			"lessb(" : self.mac_lessb,
+			"greatb(" : self.mac_greatb,
+			"ifel(" : self.mac_ifel,
+			"while(" : self.mac_while,
+			"forb(" : self.mac_forb,
+			"moveupb(" : self.mac_moveupb,
+			"movedownb(" : self.mac_movedownb,
+			"bin8tobyte(" : self.mac_bin8tobyte,
+			"bytetobin8(" : self.mac_bytetobin8,
+			"printb(" : self.mac_printb,
+			"printbin8(" : self.mac_printbin8,
+			"printbool(" : self.mac_printbool,
+			"endl(" : self.mac_endl,
+			"cleanbinx(" : self.mac_cleanbinx,
+			"boolbinx(" : self.mac_boolbinx,
+			"notbinx(" : self.mac_notbinx,
+			"andbinx(" : self.mac_andbinx,
+			"orbinx(" : self.mac_orbinx,
+			"addbinx(" : self.mac_addbinx,
+			"subbinx(" : self.mac_subbinx,
+			"multbinx(" : self.mac_multbinx,
+			"divbinx(" : self.mac_divbinx,
+			"diffbbinx(" : self.mac_diffbinx,
+			"eqbinx(" : self.mac_eqbinx,
+			"lessbinx(" : self.mac_lessbinx,
+			"greatbinx(" : self.mac_greatbinx,
+			"forbinx(" : self.mac_forbinx,
+			"moveupb(" : self.mac_moveupb,
+			"movedownb(" : self.mac_movedownb,
+			"mem(" : self.mac_mem,
+			"searchup255(" : self.mac_searchup255,
+			"searchdown255(" : self.mac_searchdown255,
+			"sendboolup(" : self.mac_sendboolup,
+			"sendbooldown(" : self.mac_sendbooldown,
+			"sendbooldownaddress(" : self.mac_sendbooldownaddress,
+			"writeaddress(" : self.mac_writeaddress,
+			"movetoaddress(" : self.mac_movetoaddress,
+			"sendboolmemdownaddress(" : self.mac_sendboolmemdownaddress,
+			"addmemprefix(" : self.mac_addmemprefix,
+			"movememprefix(" : self.mac_movememprefix,
+			"movetonextmeminternal(" : self.mac_movetonextmeminternal,
+			"movetoprevmeminternal(" : self.mac_movetoprevmeminternal,
+			"movetonextmem(" : self.mac_movetonextmem,
+			"movetoprevmem(" : self.mac_movetoprevmem,
+			"endmemaccess(" : self.mac_endmemaccess,
+			"loadbinx(" : self.mac_loadbinx,
+			"savebinx(" : self.mac_savebinx,
+			"mallocbinx(" : self.mac_mallocbinx,
+			"free(" : self.mac_free}
 		self.has_memory = False
 		self.memory_address_size = 0
 		self.commands = ['<', '>', '-', '+', '.', ',', '[', ']']
@@ -247,209 +247,209 @@ class Converter:
 		return mx + 1 - self.has_memory*(8 + 7*self.memory_address_size)
 
 	# Repeats code x number of times: repeat(x;code)
-	def func_repeat(self, values):
+	def mac_repeat(self, values):
 		return self.convert(values[1]*int(values[0]))
 
 	# Move byte up to x distance
 	# A<x>B
-	def func_upb(self, values):
+	def mac_upb(self, values):
 		return self.convert(f"[-{values[0]}>>+{values[0]}<<]")
 
 	# B<x>A
 	# Move byte down to x distance
-	def func_downb(self, values):
+	def mac_downb(self, values):
 		return self.convert(f"[-{values[0]}<<+{values[0]}>>]")
 
 	# B = A
 	# A<x>B.
-	def func_copyb(self, values):
+	def mac_copyb(self, values):
 		return self.convert("[-x>>+>+<<x<]x>>>[-x<<<+x>>>]x<<<".replace('x', values[0]))
 	
 	# Moves a group of variables up
 	# (A*x)<y>(B*x).
-	def func_upbinx(self, values):
+	def mac_upbinx(self, values):
 		return self.convert(f"repeat({values[0]};upb({values[1]})>){values[0]}<")
 
 	# Moves a group of variables down
 	# (A*x)<y>(B*x).
-	def func_downbinx(self, values):
+	def mac_downbinx(self, values):
 		return self.convert(f"repeat({values[0]};downb({values[1]})>){values[0]}<")
 
 	# Copies a group of variables
 	# (A*x)<y>(B*x).
-	def func_copybinx(self, values):
+	def mac_copybinx(self, values):
 		return self.convert(f"repeat({values[0]};copyb({values[1]})>){values[0]}<")
 
 	# A += B
 	# AB
-	def func_addb(self, values):
+	def mac_addb(self, values):
 		return self.convert(">downb(0)<")
 
 	# A -= B
 	# AB
-	def func_subb(self, values):
+	def mac_subb(self, values):
 		return self.convert(">[-<->]<")
 
 	# A *= B
 	# AB..
-	def func_multb(self, values):
+	def mac_multb(self, values):
 		return self.convert(">[-<copyb(1)>]<[-]>>downb(1)<<")
 
 	# A = A/B, B = A%B
 	# AB...........
-	def func_divb(self, values):
+	def mac_divb(self, values):
 		return self.convert("[repeat(2;copyb(2)>)>lessb()ifel(5<upb(4)5>;3<+<copyb(4)<subb()6>downb(4)<)3<]>[-]>downb(1)3>downb(3)5<")
 
 	# A != B
 	# AB
-	def func_diffb(self, values):
+	def mac_diffb(self, values):
 		return self.convert("subb()bool()")
 
 	# A == B
 	# AB
-	def func_eqb(self, values):
+	def mac_eqb(self, values):
 		return self.convert("diffb()not()")
 
 	# A < B
 	# AB........
-	def func_lessb(self, values):
+	def mac_lessb(self, values):
 		return self.convert("repeat(2;copyb(1)>)diffb()ifel(4<repeat(2;upb(3)>)4>+<<[->copyb(1)>->ifel(4<->+3>;6<[-]6>)3<]>>[-<[-]<+>>]<<downb(3);4<[-]>[-]3>)<<")
 
 	# A > B
 	# AB........
-	def func_greatb(self, values):
+	def mac_greatb(self, values):
 		return self.convert("upb(1)repeat(2;>downb(0))<<lessb()")
 
 	# A > 0
 	# A.
-	def func_bool(self, values):
+	def mac_bool(self, values):
 		return self.convert("[[-]>+<]addb()")
 
 	# not A
 	# A.
-	def func_not(self, values):
+	def mac_not(self, values):
 		return self.convert("bool()-[+>+<]addb()")
 
 	# A && B
 	# AB.
-	def func_and(self, values):
+	def mac_and(self, values):
 		return self.convert(">bool()upb(0)<bool()>>downb(0)<<addb()>++<eqb()")
 
 	# A || B
 	# AB
-	def func_or(self, values):
+	def mac_or(self, values):
 		return self.convert("addb()bool()")
 
 	# If not A then execute code one, otherwise code 2
 	# A.?
-	def func_ifel(self, values):
+	def mac_ifel(self, values):
 		return self.convert(f"bool()[->>{values[0]}<+<]->downb(0)<[+>>{values[1]}<<]")
 	
 	# While values[0] (where that code gives represents a condition): execute values[1]
 	# .. (because of the bool)
-	def func_while(self, values):
+	def mac_while(self, values):
 		return self.convert(f"{values[0]}bool()[-{values[1]}{values[0]}bool()]")
 
 	# For i in range(A): execute values[0] 
 	# AIi? (where i is the variable you can edit)
-	def func_forb(self, values):
+	def mac_forb(self, values):
 		return self.convert(f"[->>{values[0]}<+copyb(0)<]>[-]>[-]<<")
 
 	# Constructs a byte from binary data and puts it into A
 	# A8.
-	def func_bin8tobyte(self, values):
+	def mac_bin8tobyte(self, values):
 		return self.convert("[-8>128+8<]>[-7>64+7<]>[-6>32+6<]>[-5>16+5<]>[-4>8+4<]>[-3>4+3<]>[->>2+<<]>[->1+<]>downb(7)8<")
 
 	# Constructs binary information from A
 	# A8...........
-	def func_bytetobin8(self, values):
+	def mac_bytetobin8(self, values):
 		return self.convert(">128+<divb()>>64+<divb()>>32+<divb()>>16+<divb()>>8+<divb()>>4+<divb()>>2+<divb()6<")
 
 	# Prints out the byte A
 	# A............
-	def func_printb(self, values):
+	def mac_printb(self, values):
 		return self.convert(">100+<divb()[48+.[-]]addb()>10+<divb()[48+.[-]]addb()48+.[-]")
 
 	# Prints out the binary information A8
 	# A8.
-	def func_printbin8(self, values):
+	def mac_printbin8(self, values):
 		return self.convert("repeat(8;48+.[-]>)8<")
 
 	# Prints TRUE or FALSE respectively
 	# A..
-	def func_printbool(self, values):
+	def mac_printbool(self, values):
 		return self.convert("ifel(84+.2-.3+.16-.[-];70+.5-.11+.7+.14-.[-])")
 
 	# Prints a line change
 	# .
-	def func_endl(self, values):
+	def mac_endl(self, values):
 		return self.convert("10+.[-]")
 
 	# Sets a binx value to 0
 	# AX.
-	def func_cleanbinx(self, values):
+	def mac_cleanbinx(self, values):
 		return self.convert(f"repeat({values[0]};[-]>){values[0]}<")
 
 	# Gets boolean value of AX
 	# AX
-	def func_boolbinx(self, values):
+	def mac_boolbinx(self, values):
 		return self.convert(f"{int(values[0]) - 1}>repeat({int(values[0]) - 1};<or())")
 
 	# Gets not value of AX
 	# AX..
-	def func_notbinx(self, values):
+	def mac_notbinx(self, values):
 		return self.convert(f"{values[0]}>repeat({values[0]};<not()upb(0))>downbinx(8;0)<")
 
 	# AX and BX
 	# AXBX.
-	def func_andbinx(self, values):
+	def mac_andbinx(self, values):
 		return self.convert(f"x>repeat(x;<upb({int(values[0]) - 1})x>>++<eqb()downb({int(values[0]) - 1})x<)".replace('x', values[0]))
 
 	# AX or BX
 	# AXBX.
-	def func_orbinx(self, values):
+	def mac_orbinx(self, values):
 		return self.convert(f"x>repeat(x;<upb({int(values[0]) - 1})x>bool()downb({int(values[0]) - 1})x<)".replace('x', values[0]))
 	
 	# AX += BX
 	# AXBX.........
-	def func_addbinx(self, values):
+	def mac_addbinx(self, values):
 		x = int(values[0])
 		x1 = x + 9
 		return self.convert(f"{x}>repeat({x};<upb({x+3}){x}>upb({6})>ifel(>ifel(>ifel(9<+{x}<+{x1}>;9<+9>)<;>ifel(9<+9>;{x1}<+{x1}>)<)<;>ifel(>ifel(9<+9>;{x1}<+{x1}>)<;>ifel({x1}<+{x1}>;)<)<){x + 1}<){x}>[-]{x}<")
 
 	# AX -= BX
 	# AXBX.........
-	def func_subbinx(self, values):
+	def mac_subbinx(self, values):
 		x = int(values[0])
 		x1 = x + 9
 		return self.convert(f"{x}>repeat({x};<upb({x+3}){x}>upb({6})>ifel(>ifel(>ifel(9<+{x}<+{x1}>;)<;>ifel(9<+9>;9<+{x}<+{x1}>)<)<;>ifel(>ifel(;{x1}<+{x1}>)<;>ifel(9<+{x}<+{x1}>;)<)<){x + 1}<){x}>[-]{x}<")
 
-	def func_multbinx(self, values):
+	def mac_multbinx(self, values):
 		return self.convert("")
 	
-	def func_divbinx(self, values):
+	def mac_divbinx(self, values):
 		return self.convert("")
 
-	def func_diffbinx(self, values):
+	def mac_diffbinx(self, values):
 		p0 = int(values[0])
 		return self.convert("")
 
-	def func_eqbinx(self, values):
+	def mac_eqbinx(self, values):
 		return self.convert("")
 	
-	def func_lessbinx(self, values):
+	def mac_lessbinx(self, values):
 		return self.convert("")
 	
-	def func_greatbinx(self, values):
+	def mac_greatbinx(self, values):
 		return self.convert("")
 	
-	def func_forbinx(self, values):
+	def mac_forbinx(self, values):
 		return self.convert("")
 
-	def func_moveupb(self, values):
+	def mac_moveupb(self, values):
 		return self.convert("[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[->]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]")
 	
-	def func_movedownb(self, values):
+	def mac_movedownb(self, values):
 		return self.convert("[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]")
 
 	# Initiates memory system
@@ -458,110 +458,110 @@ class Converter:
 	# Each value stored in memory has 3 extra spaces to permit copies plus position data
 	# Each binx value stored in memory has a preceding values[0] bits*4 to indicate the size of the occupied chunk for algorithms such as malloc
 	# values[1] determines the number of memory bit/byte cells
-	def func_mem(self, values):
+	def mac_mem(self, values):
 		self.memory_address_size = int(values[0])
 		self.has_memory = True
 		return self.convert(f"-{1 + int(values[0])*2 + 9 + int(values[1])*4}>")
 
 	# Looks up to find a cell equal to 255
-	def func_searchup255(self, values):
+	def mac_searchup255(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(">+[->+]-")
 
 	# Looks down to find a cell equal to 255
-	def func_searchdown255(self, values):
+	def mac_searchdown255(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("<+[-<+]-")
 	
 	# Sends a boolean up from memory
 	# (no idea how to format this stack descriptor)
-	def func_sendboolup(self, values):
+	def mac_sendboolup(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("+3<copyb(0)>ifel(-searchup255()++>-searchdown255();-searchup255()+>-searchdown255())>>")
 
 	# Sends a boolean down to memory (if positioning is loaded)
 	# A..
-	def func_sendbooldown(self, values):
+	def mac_sendbooldown(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("ifel(-searchdown255()+3<[-]+<-4>searchup255()+;-searchdown255()+3<[-]<-4>searchup255()+)")
 
 	# Sends a boolean down to the memory address section
 	# A..
-	def func_sendbooldownaddress(self, values):
+	def mac_sendbooldownaddress(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("ifel(-searchdown255()++<->searchup255()+;-searchdown255()+<->searchup255()+)")
 
 	# Moves an address down to be loaded into the memory address
 	# AY.. (y is the default memory address size)
-	def func_writeaddress(self, values):
+	def mac_writeaddress(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"{self.memory_address_size}>-searchdown255()+{self.memory_address_size}>-searchup255()+repeat({self.memory_address_size};<sendbooldownaddress())")
 
-	def func_sendboolmemdownaddress(self, values):
+	def mac_sendboolmemdownaddress(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("+3<copyb(0)>ifel(-searchdown255()++>-searchup255();-searchdown255()+>-searchup255())>>")
 
 	# Adds current prefix in memory to address buffer
 	# 0{self.memory_address_size}
-	def func_addmemprefix(self, values):
+	def mac_addmemprefix(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"searchdown255(){self.memory_address_size + 1}>-repeat({self.memory_address_size};movetonextmeminternal()sendboolmemdownaddress())searchdown255()+searchup255()repeat({self.memory_address_size};movetoprevmeminternal())")
 
-	def func_movememprefix(self, values):
+	def mac_movememprefix(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"searchdown255()>-searchup255()repeat({self.memory_address_size};movetonextmeminternal()sendboolmemdownaddress())searchdown255()+searchup255()repeat({self.memory_address_size};movetoprevmeminternal())")
 
 	# Uses the loaded pointer to find the respective position in memory
 	#0
-	def func_movetoaddress(self, values):
+	def mac_movetoaddress(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"-searchdown255()>{self.memory_address_size}>{self.memory_address_size}>9>3>-searchdown255()while(>copybinx({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})searchup255()movetonextmeminternal()searchdown255())searchup255()searchup255()+")
 
 	# Move the memory pointer right
 	#0
-	def func_movetonextmeminternal(self, values):
+	def mac_movetonextmeminternal(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("+4>-")
 
 	# Move the memory pointer left
 	#0
-	def func_movetoprevmeminternal(self, values):
+	def mac_movetoprevmeminternal(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("+4<-")
 
 	# Move the memory pointer right
 	#0
-	def func_movetonextmem(self, values):
+	def mac_movetonextmem(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("-searchdown255()movetonextmeminternal()searchup255()+")
 
 	# Move the memory pointer left
 	#0
-	def func_movetoprevmem(self, values):
+	def mac_movetoprevmem(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("-searchdown255()movetoprevmeminternal()searchup255()+")
 	
 	# Ends access to memory
 	#0
-	def func_endmemaccess(self, values):
+	def mac_endmemaccess(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("-searchdown255()+searchup255()+")
 
 	# Reads binx from address BY
 	# max(BY, binx)
-	def func_loadbinx(self, values):
+	def mac_loadbinx(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"writeaddress()movetoaddress()-searchdown255()repeat({self.memory_address_size + 1};movetonextmeminternal())repeat({values[0]};sendboolup()movetonextmeminternal())+searchup255()+{values[0]}<")
 	
 	# Saves AX to address BY
 	# AXBY..
-	def func_savebinx(self, values):
+	def mac_savebinx(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"{values[0]}>writeaddress()movetoaddress()-searchdown255()repeat({int(values[0]) + self.memory_address_size};movetonextmeminternal())searchup255()+repeat({values[0]};<sendbooldown())endmemaccess()")
 
 	# Occupies the first memory chunk with sufficient size. Most likely will crash if no more space is left if memory
 	# .Y (ie, empty stack input for the placement of the pointer) (specify in the params the size that is required)
-	def func_mallocbinx(self, values):
+	def mac_mallocbinx(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		binary1 = bin(self.memory_address_size)[2:]
 		binary1 = '0'*(self.memory_address_size - len(binary1)) + binary1
@@ -570,9 +570,9 @@ class Converter:
 		writebin1 = ''.join([f">[-]{i}+" for i in binary1])
 		writebin2 = ''.join([f"4>[-]{i}+" for i in binary2])
 		code = f"""# Prepare
--searchdown255()>{2*self.memory_address_size}>9>3>
+-searchdown255()>{2*self.memory_address_size}>9>1>
 # While we have not found a space, go up.
-while(3<copyb(0)>ifel(
+while(<copyb(0)>ifel(
 		# If current space is 1, get the size of the memory chunk and jump over it
 		# Jump over initial part
 		-searchup255(){self.memory_address_size}>{writebin1}{self.memory_address_size*2}<>addbinx({self.memory_address_size})<searchdown255()
@@ -580,18 +580,18 @@ while(3<copyb(0)>ifel(
 		movememprefix()repeat({self.memory_address_size - 1};movetonextmeminternal())4>-2searchdown255()while(>copybinx({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})2searchup255()movetonextmeminternal()
 			# Add one to the positioning
 			searchup255(){self.memory_address_size*2}>+{self.memory_address_size*2}<>addbinx({self.memory_address_size})<searchdown255()
-		2searchdown255())searchup255()+searchup255()-
+		2searchdown255())searchup255()+searchup255()2+
 		# If current space is 0, check if has enough space for another memory chunk
-		;<->repeat({self.memory_address_size};4>)-repeat({values[0]};movetonextmeminternal()+3<copyb(0)>ifel(-searchdown255()>[-]+searchup255();-))2>+searchdown255()+>)2>
+		;<->repeat({self.memory_address_size};4>)-repeat({values[0]};movetonextmeminternal()+3<copyb(0)>ifel(-searchdown255()>[-]+searchup255();-))2>+searchdown255()+>)2>downb(1)2<
 	# Sum one to the malloced address
-	;-searchup255(){self.memory_address_size*2}>+{self.memory_address_size*2}<>addbinx({self.memory_address_size})<searchdown255()movetonextmeminternal()+)
+	;2>-searchup255(){self.memory_address_size*2}>+{self.memory_address_size*2}<>addbinx({self.memory_address_size})<searchdown255()movetonextmeminternal()+2<)
 # Write the size data to indicate the size of the new memory chunk
-3<+{writebin2}searchup255()+>downbinx({self.memory_address_size};0)<"""
+<+{writebin2}searchup255()+>downbinx({self.memory_address_size};0)<"""
 		return self.convert(code)
 	
 	# Frees the memory chunk
 	# AY..
-	def func_free(self, values):
+	def mac_free(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"writeaddress()movetoaddress()-searchdown255()movememprefix()repeat({self.memory_address_size - 1};movetonextmeminternal())4>-2searchdown255()while(>copybinx({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})2searchup255()movetonextmeminternal()3<[-]3>2searchdown255())2searchup255()+searchdown255()2movetonextmeminternal()repeat({self.memory_address_size + 1};movetoprevmeminternal()3<[-]3>)+searchup255()+")
 
