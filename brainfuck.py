@@ -164,6 +164,7 @@ class Converter:
 			"sendbooldown(" : self.mac_sendbooldown,
 			"sendbooldownaddress(" : self.mac_sendbooldownaddress,
 			"writeaddress(" : self.mac_writeaddress,
+			"whilememregister(" : self.mac_whilememregister,
 			"movetoaddress(" : self.mac_movetoaddress,
 			"sendboolmemdownaddress(" : self.mac_sendboolmemdownaddress,
 			"addmemprefix(" : self.mac_addmemprefix,
@@ -173,8 +174,9 @@ class Converter:
 			"movetonextmem(" : self.mac_movetonextmem,
 			"movetoprevmem(" : self.mac_movetoprevmem,
 			"endmemaccess(" : self.mac_endmemaccess,
-			"loadbinx(" : self.mac_loadbinx,
+			"load(" : self.mac_load,
 			"savebinx(" : self.mac_savebinx,
+			"mallocbinxparam(" : self.mac_mallocbinxparam,
 			"mallocbinx(" : self.mac_mallocbinx,
 			"free(" : self.mac_free}
 		self.has_memory = False
@@ -468,7 +470,7 @@ class Converter:
 	def mac_mem(self, values):
 		self.memory_address_size = int(values[0])
 		self.has_memory = True
-		return self.convert(f"-{1 + int(values[0])*2 + 9 + int(values[1])*4}>")
+		return self.convert(f"-{1 + int(values[0])*2 + 9 + int(values[1])*4 + 1}>")
 
 	# Looks up to find a cell equal to 255
 	def mac_searchup255(self, values):
@@ -484,7 +486,7 @@ class Converter:
 	# (no idea how to format this stack descriptor)
 	def mac_sendboolup(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
-		return self.convert("+3<copyb(0)>ifel(-searchup255()++>-searchdown255();-searchup255()+>-searchdown255())>>")
+		return self.convert("+3<copyb(0)>ifel(-searchup255()++<-searchdown255();-searchup255()+<-searchdown255())>>")
 
 	# Sends a boolean down to memory (if positioning is loaded)
 	# A..
@@ -518,11 +520,14 @@ class Converter:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"searchdown255()>-searchup255(){self.memory_address_size}repeat(movetonextmeminternal()sendboolmemdownaddress())searchdown255()+searchup255(){self.memory_address_size}repeat(movetoprevmeminternal())")
 
+	def mac_whilememregister(self, values):
+		return self.convert(f"while(>copybinx({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})searchup255(){values[0]}searchdown255())")
+
 	# Uses the loaded pointer to find the respective position in memory
 	#0
 	def mac_movetoaddress(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
-		return self.convert(f"-searchdown255()>{self.memory_address_size}>{self.memory_address_size}>9>3>-searchdown255()while(>copybinx({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})searchup255()movetonextmeminternal()searchdown255())searchup255()searchup255()+")
+		return self.convert(f"-searchdown255()>{self.memory_address_size}>{self.memory_address_size}>9>3>-searchdown255()whilememregister(movetonextmeminternal())2searchup255()+")
 
 	# Move the memory pointer right
 	#0
@@ -554,11 +559,11 @@ class Converter:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("-searchdown255()+searchup255()+")
 
-	# Reads binx from address BY
-	# max(BY, binx)
-	def mac_loadbinx(self, values):
+	# Reads binx from address BY (the size is determined by the address)
+	# max(BY, binx).
+	def mac_load(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
-		return self.convert(f"writeaddress()movetoaddress()-searchdown255(){self.memory_address_size + 1}movetonextmeminternal(){values[0]}repeat(sendboolup()movetonextmeminternal())+searchup255()+{values[0]}<")
+		return self.convert(f"writeaddress()movetoaddress()-searchdown255()movememprefix(){self.memory_address_size}movetonextmeminternal()2>+2>searchdown255()whilememregister(movetonextmeminternal()searchup255()+>-searchdown255())while(+2<not()upb(1)2>;-sendboolup()movetoprevmeminternal())+3<copyb(0)>[]")
 	
 	# Saves AX to address BY
 	# AXBY..
@@ -567,7 +572,37 @@ class Converter:
 		return self.convert(f"{values[0]}>writeaddress()movetoaddress()-searchdown255(){int(values[0]) + self.memory_address_size}movetonextmeminternal()searchup255()+{values[0]}repeat(<sendbooldown())endmemaccess()")
 
 	# Occupies the first memory chunk with sufficient size. Most likely will crash if no more space is left if memory
-	# .Y (ie, empty stack input for the placement of the pointer) (specify in the params the size that is required)
+	# Y. (ie, empty stack input for the placement of the pointer) (specify in the params the size that is required)
+	# Malloc binx but from param
+	def mac_mallocbinxparam(self, values):
+		binary1 = bin(self.memory_address_size)[2:]
+		binary1 = '0'*(self.memory_address_size - len(binary1)) + binary1
+		binary2 = bin(int(values[0]))[2:]
+		binary2 = '0'*(self.memory_address_size - len(binary2)) + binary2
+		writebin1 = ''.join([f">[-]{i}+" for i in binary1])
+		writebin2 = ''.join([f"4>[-]{i}+" for i in binary2])
+		code = f"""# Prepare
+-searchdown255()>{2*self.memory_address_size}>9>1>
+# While we have not found a space, go up.
+while(<copyb(0)>ifel(
+		# If current space is 1, get the size of the memory chunk and jump over it
+		# Jump over initial part
+		-searchup255(){self.memory_address_size}>{writebin1}{self.memory_address_size*2}<>addbinx({self.memory_address_size})<searchdown255()
+		# Add on the rest
+		movememprefix(){self.memory_address_size - 1}movetonextmeminternal()4>-2searchdown255()whilememregister(searchup255()movetonextmeminternal()
+			# Add one to the positioning
+			searchup255(){self.memory_address_size*2}>+{self.memory_address_size*2}<>addbinx({self.memory_address_size})<searchdown255()
+		searchdown255())searchup255()+searchup255()2+
+		# If current space is 0, check if has enough space for another memory chunk
+		;<->{self.memory_address_size}repeat(4>)-{values[0]}repeat(movetonextmeminternal()+3<copyb(0)>ifel(-searchdown255()>[-]+searchup255();-)2>)+searchdown255()+>)2>downb(1)2<
+	# Sum one to the malloced address
+	;2>-searchup255(){self.memory_address_size*2}>+{self.memory_address_size*2}<>addbinx({self.memory_address_size})<searchdown255()movetonextmeminternal()+2<)
+# Write the size data to indicate the size of the new memory chunk
+<+{writebin2}searchup255()+>downbinx({self.memory_address_size};0)<"""
+		return self.convert(code)
+
+	# Occupies the first memory chunk with sufficient size. Most likely will crash if no more space is left if memory
+	# A2X.Y.
 	def mac_mallocbinx(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		binary1 = bin(self.memory_address_size)[2:]
@@ -584,10 +619,10 @@ while(<copyb(0)>ifel(
 		# Jump over initial part
 		-searchup255(){self.memory_address_size}>{writebin1}{self.memory_address_size*2}<>addbinx({self.memory_address_size})<searchdown255()
 		# Add on the rest
-		movememprefix(){self.memory_address_size - 1}movetonextmeminternal()4>-2searchdown255()while(>copybinx({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})2searchup255()movetonextmeminternal()
+		movememprefix(){self.memory_address_size - 1}movetonextmeminternal()4>-2searchdown255()whilememregister(searchup255()movetonextmeminternal()
 			# Add one to the positioning
 			searchup255(){self.memory_address_size*2}>+{self.memory_address_size*2}<>addbinx({self.memory_address_size})<searchdown255()
-		2searchdown255())searchup255()+searchup255()2+
+		searchdown255())searchup255()+searchup255()2+
 		# If current space is 0, check if has enough space for another memory chunk
 		;<->{self.memory_address_size}repeat(4>)-{values[0]}repeat(movetonextmeminternal()+3<copyb(0)>ifel(-searchdown255()>[-]+searchup255();-)2>)+searchdown255()+>)2>downb(1)2<
 	# Sum one to the malloced address
@@ -595,12 +630,12 @@ while(<copyb(0)>ifel(
 # Write the size data to indicate the size of the new memory chunk
 <+{writebin2}searchup255()+>downbinx({self.memory_address_size};0)<"""
 		return self.convert(code)
-	
+
 	# Frees the memory chunk
 	# AY..
 	def mac_free(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
-		return self.convert(f"writeaddress()movetoaddress()-searchdown255()movememprefix(){self.memory_address_size - 1}movetonextmeminternal()4>-2searchdown255()while(>copybinx({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})2searchup255()movetonextmeminternal()3<[-]3>2searchdown255())2searchup255()+searchdown255()2movetonextmeminternal(){self.memory_address_size + 1}repeat(movetoprevmeminternal()3<[-]3>)+searchup255()+")
+		return self.convert(f"writeaddress()movetoaddress()-searchdown255()movememprefix(){self.memory_address_size - 1}movetonextmeminternal()4>-2searchdown255()whilememregister(searchup255()movetonextmeminternal()3<[-]3>searchdown255())2searchup255()+searchdown255()2movetonextmeminternal(){self.memory_address_size + 1}repeat(movetoprevmeminternal()3<[-]3>)+searchup255()+")
 
 if __name__ == "__main__":
 	Interpreter(Converter(input())).run()
