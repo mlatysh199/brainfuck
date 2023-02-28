@@ -561,12 +561,14 @@ class Converter:
 
 	# Reads binx from address BY (the size is determined by the address)
 	# max(BY, binx).
+	# TODO make final positioning for memory defined binx
 	def mac_load(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"writeaddress()movetoaddress()-searchdown255()movememprefix(){self.memory_address_size}movetonextmeminternal()2>+2>searchdown255()whilememregister(movetonextmeminternal()searchup255()+>-searchdown255())while(+2<not()upb(1)2>;-sendboolup()movetoprevmeminternal())+3<copyb(0)>[]")
 	
 	# Saves AX to address BY
 	# AXBY..
+	# TODO make final positioning for memory defined binx
 	def mac_savebinx(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"{values[0]}>writeaddress()movetoaddress()-searchdown255(){int(values[0]) + self.memory_address_size}movetonextmeminternal()searchup255()+{values[0]}repeat(<sendbooldown())endmemaccess()")
@@ -603,6 +605,7 @@ while(<copyb(0)>ifel(
 
 	# Occupies the first memory chunk with sufficient size. Most likely will crash if no more space is left if memory
 	# A2X.Y.
+	# TODO make
 	def mac_mallocbinx(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		binary1 = bin(self.memory_address_size)[2:]
