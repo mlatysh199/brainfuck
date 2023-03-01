@@ -174,7 +174,7 @@ class Converter:
 			"movetonextmem(" : self.mac_movetonextmem,
 			"movetoprevmem(" : self.mac_movetoprevmem,
 			"endmemaccess(" : self.mac_endmemaccess,
-			"load(" : self.mac_load,
+			"loadbinx(" : self.mac_loadbinx,
 			"savebinx(" : self.mac_savebinx,
 			"mallocbinxparam(" : self.mac_mallocbinxparam,
 			"mallocbinx(" : self.mac_mallocbinx,
@@ -559,16 +559,14 @@ class Converter:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("-searchdown255()+searchup255()+")
 
-	# Reads binx from address BY (the size is determined by the address)
-	# max(BY, binx).
-	# TODO make final positioning for memory defined binx
-	def mac_load(self, values):
+	# Reads binx from address BY
+	# max(BY, binx)
+	def mac_loadbinx(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
-		return self.convert(f"writeaddress()movetoaddress()-searchdown255()movememprefix(){self.memory_address_size}movetonextmeminternal()2>+2>searchdown255()whilememregister(movetonextmeminternal()searchup255()+>-searchdown255())while(+2<not()upb(1)2>;-sendboolup()movetoprevmeminternal())+3<copyb(0)>[]")
+		return self.convert(f"writeaddress()movetoaddress()-searchdown255(){self.memory_address_size + 1}movetonextmeminternal(){values[0]}repeat(sendboolup()movetonextmeminternal())+searchup255()+{values[0]}<")
 	
 	# Saves AX to address BY
 	# AXBY..
-	# TODO make final positioning for memory defined binx
 	def mac_savebinx(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"{values[0]}>writeaddress()movetoaddress()-searchdown255(){int(values[0]) + self.memory_address_size}movetonextmeminternal()searchup255()+{values[0]}repeat(<sendbooldown())endmemaccess()")
