@@ -176,8 +176,8 @@ class Converter:
 			"endmemaccess(" : self.mac_endmemaccess,
 			"loadbinx(" : self.mac_loadbinx,
 			"savebinx(" : self.mac_savebinx,
-			"mallocbinxparam(" : self.mac_mallocbinxparam,
 			"mallocbinx(" : self.mac_mallocbinx,
+			"malloc(" : self.mac_malloc,
 			"free(" : self.mac_free}
 		self.has_memory = False
 		self.memory_address_size = 0
@@ -574,7 +574,7 @@ class Converter:
 	# Occupies the first memory chunk with sufficient size. Most likely will crash if no more space is left if memory
 	# Y. (ie, empty stack input for the placement of the pointer) (specify in the params the size that is required)
 	# Malloc binx but from param
-	def mac_mallocbinxparam(self, values):
+	def mac_mallocbinx(self, values):
 		binary1 = bin(self.memory_address_size)[2:]
 		binary1 = '0'*(self.memory_address_size - len(binary1)) + binary1
 		binary2 = bin(int(values[0]))[2:]
@@ -602,9 +602,10 @@ while(<copyb(0)>ifel(
 		return self.convert(code)
 
 	# Occupies the first memory chunk with sufficient size. Most likely will crash if no more space is left if memory
+	# This function is dynamic
 	# A2X.Y.
 	# TODO make
-	def mac_mallocbinx(self, values):
+	def mac_malloc(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		binary1 = bin(self.memory_address_size)[2:]
 		binary1 = '0'*(self.memory_address_size - len(binary1)) + binary1
@@ -633,6 +634,7 @@ while(<copyb(0)>ifel(
 		return self.convert(code)
 
 	# Frees the memory chunk
+	# Dynamic
 	# AY..
 	def mac_free(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
