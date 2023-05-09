@@ -104,6 +104,7 @@ class Converter:
 	commands = ['<', '>', '-', '+', '.', ',', '[', ']']
 	skip = [' ', '\n', '\t']
 	numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+	highlights = ['@']
 
 	def __init__(self, code):
 		self.macros = {"repeat(" : self.mac_placeholder,
@@ -148,6 +149,8 @@ class Converter:
 			"orbinx(" : self.mac_orbinx,
 			"addbinx(" : self.mac_addbinx,
 			"subbinx(" : self.mac_subbinx,
+			"rshiftbinx(" : self.mac_rshiftbinx,
+			"lshiftbinx(" : self.mac_lshiftbinx,
 			"multbinx(" : self.mac_multbinx,
 			"divbinx(" : self.mac_divbinx,
 			"diffbinx(" : self.mac_diffbinx,
@@ -210,6 +213,11 @@ class Converter:
 				number += int(code[pos])
 			elif code[pos] == '#':
 				while pos < len(code) and code[pos] != '\n': pos += 1
+			elif code[pos] in self.highlights:
+				result += code[pos]*(number + (not number and not number_mode))
+				self.pc += (number + (not number and not number_mode))
+				number = 0
+				number_mode = False
 			elif code[pos] not in self.skip:
 				macro = ""
 				while macro not in self.macros:
@@ -280,7 +288,7 @@ class Converter:
 	# Moves a group of variables up
 	# (A*x)<y>(B*x).
 	def mac_upbinx(self, values):
-		return self.convert(f"{values[0]}repeat(upb({values[1]})>){values[0]}<")
+		return self.convert(f"{values[0]}>{values[0]}repeat(<upb({values[1]}))")
 
 	# Moves a group of variables down
 	# (A*x)<y>(B*x).
@@ -398,9 +406,9 @@ class Converter:
 		return self.convert("10+.[-]")
 
 	# Sets a binx value to 0
-	# AX.
+	# AX
 	def mac_cleanbinx(self, values):
-		return self.convert(f"{values[0]}repeat([-]>){values[0]}<")
+		return self.convert(f"[-]{int(values[0]) - 1}repeat(>[-]){int(values[0]) - 1}<")
 
 	# Gets boolean value of AX
 	# AX
@@ -436,8 +444,17 @@ class Converter:
 		x1 = x + 9
 		return self.convert(f"{x}>{x}repeat(<upb({x+3}){x}>upb({6})>ifel(>ifel(>ifel(9<+{x}<+{x1}>;)<;>ifel(9<+9>;9<+{x}<+{x1}>)<)<;>ifel(>ifel(;{x1}<+{x1}>)<;>ifel(9<+{x}<+{x1}>;)<)<){x + 1}<){x}>[-]{x}<")
 
+	def mac_rshiftbinx(self, values):
+		x = int(values[0])
+		return self.convert(f"{x - 1}>[-]{x - 1}repeat(<upb(0))")
+
+	def mac_lshiftbinx(self, values):
+		x = int(values[0])
+		return self.convert(f"[-]{x - 1}repeat(>downb(0)){x - 1}<")
+
 	def mac_multbinx(self, values):
-		return self.convert("")
+		x = int(values[0])
+		return self.convert(f"{x}>upbinx({x};{x + 1}){x}repeat(<ifel(>copybinx({2*x};{4*x - 1}){2*x}>addbinx({2*x}){2*x + 1}<;)3>lshiftbinx({2*x}){2+x}<rshiftbinx({x}){x}>)2>cleanbinx({2*x})@{2*x}>{x}lshiftbinx({2*x})downbinx({x};{x + 2 + 2*x - 1}){x + 2 + 2*x}<")
 	
 	def mac_divbinx(self, values):
 		return self.convert("")
