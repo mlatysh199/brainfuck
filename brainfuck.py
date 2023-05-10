@@ -72,9 +72,6 @@ class Interpreter:
 		if self.debug: print(self.__debug(' '))
 		return result
 
-# TODO comparisons for xbit numbers
-# TODO multiplication
-# TODO division
 # TODO printing xbit numbers 
 """
 >>> int("11111111111111111111111111111111", 2)//1000000000
@@ -298,7 +295,7 @@ class Converter:
 	# Copies a group of variables
 	# (A*x)<y>(B*x).
 	def mac_copybinx(self, values):
-		return self.convert(f"{values[0]}repeat(copyb({values[1]})>){values[0]}<")
+		return self.convert(f"copyb({values[1]}){int(values[0]) - 1}repeat(>copyb({values[1]})){int(values[0]) - 1}<")
 
 	# A += B
 	# AB
@@ -457,7 +454,26 @@ class Converter:
 		return self.convert(f"{x}>upbinx({x};{x + 1}){x}repeat(<ifel(>copybinx({2*x};{4*x - 1}){2*x}>addbinx({2*x}){2*x + 1}<;)3>lshiftbinx({2*x}){2+x}<rshiftbinx({x}){x}>)2>cleanbinx({2*x})@{2*x}>{x}lshiftbinx({2*x})downbinx({x};{x + 2 + 2*x - 1}){x + 2 + 2*x}<")
 	
 	def mac_divbinx(self, values):
-		return self.convert("")
+		x = int(values[0])
+		data = bin(x)[2:]
+		sd = len(data)
+		implant = '>'.join(['+' if i == '1' else '' for i in data])
+		return self.convert(f"""upbinx({x};{3*x - 1}){x}>copybinx({x};{3*x - 1}){3*x}>eqbinx({x})ifel(kill();){implant}{sd - 1}<while(
+				copybinx({sd};{sd - 1}){sd}>diffbinx({sd})ifel(
+					2<{sd - 1}>+{2*sd - 1}<addbinx({sd}){2 + sd}>
+				;
+				){sd}<
+		      while(
+					copybinx({sd};{sd - 1}){sd}>diffbinx({sd})upb(0)>ifel(
+						{3 + sd + 3*x}<copybinx({2*x};{3*x + sd - 1}){2*x}>copybinx({x};{4*x + sd - 1}){x + sd}>greatbinx({2*x})3>
+						;)<
+				;
+					{sd - 1}>+{2*sd - 1}<subbinx({sd}){3*x}<rshiftbinx({2*x}){x}<lshiftbinx({x}){4*x}>
+				)
+			  {sd}<copybinx({sd};{sd - 1}){sd}>diffbinx({sd})
+			  ;
+			  	{sd + 3*x + 1}<+>copybinx({2*x};{5*x + sd - 1}){2*x}>upbinx({x};{2*x + sd - 1}){x + sd}>subbinx({2*x}){x}>downbinx({x};{2*x + sd - 1}){x - sd + 1}<+{2*sd - 1}<subbinx({sd})
+			  ){sd + 3*x}<cleanbinx({3*x}){x}<""")
 
 	def mac_diffbinx(self, values):
 		x = int(values[0])
