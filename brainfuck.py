@@ -3,8 +3,8 @@ import sys
 # Runs brainfuck code
 class Interpreter:
 	def __init__(self, converter, debug=False, size=None):
-		if not size: size = converter.min_mem_size()
-		#elif size < converter.min_mem_size(): raise IndexError(f"This program requires at least {converter.min_mem_size()} units of memory.")
+		if not size: size = converter.min_mem_size
+		elif size < converter.min_mem_size: raise IndexError(f"This program requires at least {converter.min_mem_size} units of memory.")
 		self.debug = debug
 		self.code = converter.get_bf()
 		self.stack_trace_data = converter.get_stack_trace_data()
@@ -73,12 +73,13 @@ class Interpreter:
 		return result
 
 # Converts pseudo brainfuck code to brainfuck
-class Converter:
+class Compiler:
 	placeholder_macros = ["while_run(", "while_bool(", "repeat(", "ifel_true(", "ifel_false("]
 	commands = ['<', '>', '-', '+', '.', ',', '[', ']']
 	skip = [' ', '\n', '\t']
 	numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 	highlights = ['@']
+	glide_based = ["searchup255(", "searchdown255(", "sendboolup(", "sendbooldown(", "sendbooldownaddress(", "writeaddress(", "whilememregister(", "movetoaddress(", "sendboolmemdownaddress(", "addmemprefix(", "movememprefix(", "movetonextmeminternal(", "movetoprevmeminternal(", "movetonextmem(", "movetoprevmem(", "endmemaccess(", "loadbinx(", "savebinx(", "mallocbinx(", "free("]
 
 	def __init__(self, code):
 		self.macros = {"repeat(" : self.mac_placeholder,
@@ -166,7 +167,11 @@ class Converter:
 		self.memory_address_size = 0
 		self.pc = 0
 		self.stack_trace_data = [dict(), dict()]
+		self.in_mem = False
+		self.min_mem_size = 0
+		self.current_mem_size = 0
 		self.bf = self.convert(code)
+		self.min_mem_size += 1
 
 	# Returns the generated brainfuck code
 	def get_bf(self):
@@ -186,6 +191,10 @@ class Converter:
 			if code[pos] in self.commands:
 				result += code[pos]*(number + (not number and not number_mode))
 				self.pc += (number + (not number and not number_mode))
+				if code[pos] == '>' and not self.in_mem:
+					self.current_mem_size += number + (not number and not number_mode)
+					self.min_mem_size = max(self.current_mem_size, self.min_mem_size)
+				if code[pos] == '<' and not self.in_mem: self.current_mem_size -= number + (not number and not number_mode)
 				number = 0
 				number_mode = False
 			elif code[pos] in self.numbers:
@@ -205,6 +214,8 @@ class Converter:
 					if macro and macro[-1] == '(': raise NameError(f"The bf-macro '{macro[:-1]}' is not defined (pos: {pos - len(macro)}).")
 					macro += code[pos]
 					pos += 1
+				before_mem = self.in_mem
+				self.in_mem = macro in self.glide_based or self.in_mem
 				params = []
 				param = ""
 				level = 1
@@ -226,22 +237,12 @@ class Converter:
 						if self.pc - 1 not in self.stack_trace_data[1]:
 							self.stack_trace_data[1][self.pc - 1] = []
 						self.stack_trace_data[1][self.pc - 1].insert(0, macro[:-1] + f"_{i}"*bool(number))
+				self.in_mem = before_mem
 			if code[pos] not in self.numbers:
 				number = 0
 				number_mode = False
 			pos += 1
 		return result
-	
-	# Returns the minimum size of memory required to execute the compiled code.
-	def min_mem_size(self):
-		mx = 0
-		current = 0
-		for i in self.bf:
-			if i == '>':
-				current += 1
-				if current > mx: mx += 1
-			elif i == '<': current -= 1
-		return mx + 1 - self.has_memory*(8 + 7*self.memory_address_size)
 
 	# Searches for value 254, which is reserved for killing the program
 	def mac_kill(self, values):
@@ -681,8 +682,11 @@ while(<copyb(0)>3+ifel(;kill())<copyb(0)>ifel(
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"writeaddress()movetoaddress()-searchdown255()movememprefix(){self.memory_address_size - 1}movetonextmeminternal()4>-2searchdown255()whilememregister(searchup255()movetonextmeminternal()3<[-]3>searchdown255())2searchup255()+searchdown255()2movetonextmeminternal(){self.memory_address_size + 1}repeat(movetoprevmeminternal()3<[-]3>)+searchup255()+")
 
+class Precompiler:
+	def __init__(self):
+		pass
 
 if __name__ == "__main__":
 	# importlib.reload(brainfuck)
     # brainfuck.Interpreter(brainfuck.Converter(">>+>+>>+>>7<multbinx(4)"), True, 50).run()
-	Interpreter(Converter(input())).run()
+	Interpreter(Compiler(input())).run(True)
