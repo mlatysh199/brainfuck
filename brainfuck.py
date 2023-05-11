@@ -72,29 +72,6 @@ class Interpreter:
 		if self.debug: print(self.__debug(' '))
 		return result
 
-# TODO printing xbit numbers 
-"""
->>> int("11111111111111111111111111111111", 2)//1000000000
-4
->>> bin(1000000000)
-'0b111011100110101100101000000000'
->>> bin(100000000)
-'0b101111101011110000100000000'
->>> bin(10000000)
-'0b100110001001011010000000'
->>> bin(1000000)
-'0b11110100001001000000'
->>> bin(100000)
-'0b11000011010100000'
->>> bin(10000)
-'0b10011100010000'
->>> bin(1000)
-'0b1111101000'
->>> bin(100)
-'0b1100100'
->>> 
-"""
-
 # Converts pseudo brainfuck code to brainfuck
 class Converter:
 	placeholder_macros = ["while_run(", "while_bool(", "repeat(", "ifel_true(", "ifel_false("]
@@ -105,6 +82,7 @@ class Converter:
 
 	def __init__(self, code):
 		self.macros = {"repeat(" : self.mac_placeholder,
+		 	"implant(" : self.mac_implant,
 		 	"kill(" : self.mac_kill,
 			"upb(" : self.mac_upb,
 			"downb(" : self.mac_downb,
@@ -135,10 +113,15 @@ class Converter:
 			"movedownb(" : self.mac_movedownb,
 			"bin8tobyte(" : self.mac_bin8tobyte,
 			"bytetobin8(" : self.mac_bytetobin8,
+			"digitbin4(" : self.mac_digitbin4,
 			"printb(" : self.mac_printb,
-			"printbin8(" : self.mac_printbin8,
+			"printbinx(" : self.mac_printbinx,
 			"printbool(" : self.mac_printbool,
+			"printintbinx(" : self.mac_printintbinx,
+			"printdigit(" : self.mac_printdigit,
 			"endl(" : self.mac_endl,
+			"getintbinx(" : self.mac_getintbinx,
+			"getbinx(" : self.mac_getbinx,
 			"cleanbinx(" : self.mac_cleanbinx,
 			"boolbinx(" : self.mac_boolbinx,
 			"notbinx(" : self.mac_notbinx,
@@ -150,6 +133,7 @@ class Converter:
 			"lshiftbinx(" : self.mac_lshiftbinx,
 			"multbinx(" : self.mac_multbinx,
 			"divbinx(" : self.mac_divbinx,
+			"modbinx(" : self.mac_modbinx,
 			"diffbinx(" : self.mac_diffbinx,
 			"eqbinx(" : self.mac_eqbinx,
 			"lessbinx(" : self.mac_lessbinx,
@@ -267,6 +251,15 @@ class Converter:
 	def mac_placeholder(self, values):
 		return self.convert(f"{values[0]}")
 
+	def mac_implant(self, values):
+		x = int(values[0])
+		v = int(values[1])
+		data = bin(v)[2:]
+		if len(data) >= x: data = data[len(data) - x:]
+		else: data = '0'*(x - len(data)) + data
+		implant = '>'.join(['+' if i == '1' else '' for i in data])
+		return self.convert(implant + '<'*(x - 1))
+
 	# Move byte up to x distance
 	# A<x>B
 	def mac_upb(self, values):
@@ -330,7 +323,7 @@ class Converter:
 	# A < B
 	# AB........
 	def mac_lessb(self, values):
-		return self.convert("2repeat(copyb(1)>)diffb()ifel(4<2repeat(upb(3)>)4>+<<[->copyb(1)>->ifel(4<->+3>;6<[-]6>)3<]>>[-<[-]<+>>]<<downb(3);4<[-]>[-]3>)<<")
+		return self.convert("2repeat(copyb(1)>)diffb()ifel(3<[-<copyb(1)2>ifel(4<-4>;3<[-]4>+<)<]<[-]>[-]4>downb(4)<;4<[-]>[-]3>)2<")
 
 	# A > B
 	# AB........
@@ -382,25 +375,53 @@ class Converter:
 	def mac_bytetobin8(self, values):
 		return self.convert(">128+<divb()>>64+<divb()>>32+<divb()>>16+<divb()>>8+<divb()>>4+<divb()>>2+<divb()6<")
 
+	def mac_digitbin4(self, values):
+		return self.convert(">8+<divb()>>4+<divb()>>2+<divb()2<")
+
 	# Prints out the byte A
 	# A............
 	def mac_printb(self, values):
 		return self.convert(">100+<divb()[48+.[-]]addb()>10+<divb()[48+.[-]]addb()48+.[-]")
 
-	# Prints out the binary information A8
-	# A8.
-	def mac_printbin8(self, values):
-		return self.convert("8repeat(48+.[-]>)8<")
+	# Prints out the binary information AX
+	# AX.
+	def mac_printbinx(self, values):
+		x = int(values[0])
+		return self.convert(f"{x}repeat(48+.[-]>){x}<")
 
 	# Prints TRUE or FALSE respectively
 	# A..
 	def mac_printbool(self, values):
 		return self.convert("ifel(84+.2-.3+.16-.[-];70+.5-.11+.7+.14-.[-])")
 
+	# Prints an integer (at least 4 bits)
+	def mac_printintbinx(self, values):
+		x = int(values[0])
+		bx = 1 << x
+		ten = 1
+		while ten*10 < bx: ten *= 10
+		data = ""
+		while ten:
+			data += f"copybinx({x};{x - 1}){2*x}>implant({x};{ten}){x}<divbinx({x}){x - 4}>printdigit(){x - 4}<implant({x};{ten}){x}<modbinx({x})"
+			ten //= 10
+		return self.convert(data)
+
+	def mac_printdigit(self, values):
+		return self.convert(f"[-4>8+4<]>[-3>4+3<]>[-2>2+2<]>[->+<]>48+.[-]4<")
+
 	# Prints a line change
 	# .
 	def mac_endl(self, values):
 		return self.convert("10+.[-]")
+
+	# At least bin4
+	def mac_getintbinx(self, values):
+		x = int(values[0])
+		return self.convert(f"{x}>while(,48-copyb(0)2>10+<lessb();<upb({6*x + 11})implant({x};10){x}<multbinx({x}){7*x + 12}>downb({6*x + 11}){6*x + 12}<{x - 4}repeat(upb(0)>)digitbin4(){2*x - 4}<addbinx({x}){x}>)<[-]{x}<")
+
+	def mac_getbinx(self, values):
+		x = int(values[0])
+		return self.convert(f"{x}repeat(,48-bool()>){x}<")
 
 	# Sets a binx value to 0
 	# AX
@@ -453,27 +474,26 @@ class Converter:
 		x = int(values[0])
 		return self.convert(f"{x}>upbinx({x};{x + 1}){x}repeat(<ifel(>copybinx({2*x};{4*x - 1}){2*x}>addbinx({2*x}){2*x + 1}<;)3>lshiftbinx({2*x}){2+x}<rshiftbinx({x}){x}>)2>cleanbinx({2*x})@{2*x}>{x}lshiftbinx({2*x})downbinx({x};{x + 2 + 2*x - 1}){x + 2 + 2*x}<")
 	
+	# Min x size: 4
 	def mac_divbinx(self, values):
 		x = int(values[0])
-		data = bin(x)[2:]
-		sd = len(data)
-		implant = '>'.join(['+' if i == '1' else '' for i in data])
-		return self.convert(f"""upbinx({x};{3*x - 1}){x}>copybinx({x};{3*x - 1}){3*x}>eqbinx({x})ifel(kill();){implant}{sd - 1}<while(
-				copybinx({sd};{sd - 1}){sd}>diffbinx({sd})ifel(
-					2<{sd - 1}>+{2*sd - 1}<addbinx({sd}){2 + sd}>
+		return self.convert(f"""upbinx({x};{3*x - 1}){x}>copybinx({x};{3*x - 1}){3*x}>eqbinx({x})ifel(kill();)implant({x};{x})while(
+				while(
+					{3*x}<copybinx({2*x};{4*x - 1}){2*x}>copybinx({x};{5*x - 1}){2*x}>greatbinx({2*x})not()copyb(1)2>not()ifel(
+						{4 + x}<copybinx({x};{x - 1 + 4}){4 + x}>diffbinx({x})downb(2)
+					;)<
 				;
-				){sd}<
-		      while(
-					copybinx({sd};{sd - 1}){sd}>diffbinx({sd})upb(0)>ifel(
-						{3 + sd + 3*x}<copybinx({2*x};{3*x + sd - 1}){2*x}>copybinx({x};{4*x + sd - 1}){x + sd}>greatbinx({2*x})3>
-						;)<
-				;
-					{sd - 1}>+{2*sd - 1}<subbinx({sd}){3*x}<rshiftbinx({2*x}){x}<lshiftbinx({x}){4*x}>
+					{x - 2}>+{2*x - 1}<subbinx({x}){3*x}<rshiftbinx({2*x}){x}<lshiftbinx({x}){4*x}>
 				)
-			  {sd}<copybinx({sd};{sd - 1}){sd}>diffbinx({sd})
+			  <
 			  ;
-			  	{sd + 3*x + 1}<+>copybinx({2*x};{5*x + sd - 1}){2*x}>upbinx({x};{2*x + sd - 1}){x + sd}>subbinx({2*x}){x}>downbinx({x};{2*x + sd - 1}){x - sd + 1}<+{2*sd - 1}<subbinx({sd})
-			  ){sd + 3*x}<cleanbinx({3*x}){x}<""")
+			  	{4*x + 1}<+>copybinx({2*x};{6*x - 1}){2*x}>upbinx({x};{3*x - 1}){x + x}>subbinx({2*x}){x}>downbinx({x};{3*x - 1}){2*x}<
+			  ){4*x}<cleanbinx({3*x}){x}<""")
+
+	# Min x size: 4
+	def mac_modbinx(self, values):
+		x = int(values[0])
+		return self.convert(f"2repeat(copybinx({x};{2*x - 1}){x}>)divbinx({x}){x}<multbinx({x}){x}<subbinx({x})")
 
 	def mac_diffbinx(self, values):
 		x = int(values[0])
@@ -485,11 +505,23 @@ class Converter:
 	
 	def mac_lessbinx(self, values):
 		x = int(values[0])
-		return self.convert(f"{x}repeat(upb({2*x - 1}){x}>upb({x + 2}){x}>ifel(ifel(;);ifel(+downb({3 + 2*x});)){2*x - 1}<){x}<boolbinx({x})")
+		return self.convert(f"""copybinx({x};{2*x - 1}){x}>copybinx({x};{2*x - 1}){x}>diffbinx({x})upb(0)>ifel(
+		      3<while(
+				{2*x}<copyb({2*x - 1}){x}>copyb({x}){x}>eqb()
+				;
+				2repeat({x}<lshiftbinx({x})){2*x}>
+			  )
+			  	{2*x}<upb({2*x + 3}){x}>upb({x}){x + 1}>ifel(>ifel(;6<+6>)<;)2>;){2*x + 1}<cleanbinx({2*x}){2*x}>downb({2*x - 1}){2*x}<""")
 	
 	def mac_greatbinx(self, values):
 		x = int(values[0])
-		return self.convert(f"{x}repeat(upb({2*x - 1}){x}>upb({x + 2}){x}>ifel(ifel(;+downb({3 + 2*x}));ifel(;)){2*x - 1}<){x}<boolbinx({x})")
+		return self.convert(f"""copybinx({x};{2*x - 1}){x}>copybinx({x};{2*x - 1}){x}>diffbinx({x})upb(0)>ifel(
+		      3<while(
+				{2*x}<copyb({2*x - 1}){x}>copyb({x}){x}>eqb()
+				;
+				2repeat({x}<lshiftbinx({x})){2*x}>
+			  )
+			  	{2*x}<upb({2*x + 3}){x}>upb({x}){x + 1}>ifel(;>ifel(6<+6>;)<)2>;){2*x + 1}<cleanbinx({2*x}){2*x}>downb({2*x - 1}){2*x}<""")
 	
 	def mac_forbinx(self, values):
 		return self.convert("")
@@ -651,4 +683,6 @@ while(<copyb(0)>3+ifel(;kill())<copyb(0)>ifel(
 
 
 if __name__ == "__main__":
+	# importlib.reload(brainfuck)
+    # brainfuck.Interpreter(brainfuck.Converter(">>+>+>>+>>7<multbinx(4)"), True, 50).run()
 	Interpreter(Converter(input())).run()
