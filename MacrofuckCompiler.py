@@ -1,87 +1,103 @@
-import sys
+from enum import Enum
 
-# Runs brainfuck code
-class Interpreter:
-	def __init__(self, converter, debug=False, size=None):
-		if not size: size = converter.min_mem_size
-		elif size < converter.min_mem_size: raise IndexError(f"This program requires at least {converter.min_mem_size} units of memory.")
-		self.debug = debug
-		self.code = converter.get_bf()
-		self.stack_trace_data = converter.get_stack_trace_data()
-		self.size = size
-		self.reset()
+# Token types
+class TokenType(Enum):
+	EOF = -1
+	Brainfuck = 0
+	Number = 1
+	Macro = 2
+	Params = 3
 
-	# Presets all the execution data
-	def reset(self):
-		self.ptr = 0
-		self.in_tape_pos = 0
-		self.mem = [0]*self.size
-		self.pc = 0
-		self.return_stack = []
-		self.stack_trace = ["start"]
+# Token container
+class Token:
+	def __init__(self, type : TokenType, value) -> None:
+		self.type = type
+		self.value = value
 
-	# Shows debug info
-	def __debug(self, ins):
-		result = ""
-		mem_text = list('  ' + '  '.join([str(i).rjust(3) for i in self.mem]) + '  ')
-		mem_text[5 + self.ptr*5] = '#'
-		if self.pc in self.stack_trace_data[0] and (ins != '[' or len(self.stack_trace) < len(self.stack_trace_data[0][self.pc]) or self.stack_trace[-len(self.stack_trace_data[0][self.pc]):] != self.stack_trace_data[0][self.pc]):
-			result += "DEBUG: " + " > ".join(self.stack_trace) + ' '
-			self.stack_trace += self.stack_trace_data[0][self.pc]
-			result += ">>> " + " > ".join(self.stack_trace_data[0][self.pc]) + '\n'
-		if self.pc in self.stack_trace_data[1] and (ins != ']' or not self.mem[self.ptr]):
-			for _ in range(len(self.stack_trace_data[1][self.pc])): self.stack_trace.pop()
-			result += "DEBUG: " + " > ".join(self.stack_trace) + " <<< " + " < ".join(self.stack_trace_data[1][self.pc]) + '\n'
-		result += f"DEBUG: {str(self.pc).rjust(4)} {ins} {str(self.ptr).rjust(3)}  [{''.join(mem_text)}]"
-		return result
+# Reads tokens from string
+class Lexer:
+	brainfuck_chars = "><+-.,[]@" # The @ symbol is a code marker
+	macro_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
+	number_chars = "0123456789"
+	ignore_chars = " \t\n"
+	separator_chars = ";"
+	open_parenthesis_chars = "("
+	close_parenthesis_chars = ")"
+	comment_chars = "#"
+	comment_break_chars = "\n"
 
-	# Main runner system
-	def run(self, interactive=False, in_tape=""):
-		length = len(self.code)
-		result = ""
-		while self.pc < length:
-			ins = self.code[self.pc]
-			if self.debug: print(self.__debug(ins))
-			if ins == '<': self.ptr -= 1
-			elif ins == '>': self.ptr += 1
-			elif ins == '-': self.mem[self.ptr] = (self.mem[self.ptr] - 1)&255
-			elif ins == '+': self.mem[self.ptr] = (self.mem[self.ptr] + 1)&255
-			elif ins == '.':
-				result += chr(self.mem[self.ptr])
-				if interactive: print(chr(self.mem[self.ptr]), end='')
-			elif ins == ',':
-				char = ''
-				if not interactive:
-					char = in_tape[self.in_tape_pos]
-					self.in_tape_pos += 1
-				else: char = sys.stdin.read(1)
-				self.mem[self.ptr] = ord(char)&255
-			elif ins == '[':
-				self.return_stack.append(self.pc)
-				if not self.mem[self.ptr]:
-					brks = 1
-					while brks:
-						self.pc += 1
-						brks = brks + (self.code[self.pc] == '[') - (self.code[self.pc] == ']')
-					self.pc -= 1
-			elif ins == ']':
-				ret = self.return_stack.pop()
-				if self.mem[self.ptr]: self.pc = ret - 1
-			if self.ptr < 0 or self.ptr >= self.size: raise MemoryError("Pointer exceeded designated memory: "+ " > ".join(self.stack_trace))
-			self.pc += 1
-		if self.debug: print(self.__debug(' '))
-		return result
+	def __init__(self, stream : str) -> None:
+		self.stream = stream
+		self.pos = 0
 
-# Converts pseudo brainfuck code to brainfuck
+	# Consumes comments
+	def process_comment(self) -> None:
+		while self.pos < len(self.stream) and self.stream[self.pos] not in self.comment_break_chars: self.pos += 1
+		self.pos += 1
+
+	# Processes macros
+	def process_macro(self) -> Token:
+		word = ""
+		while self.pos < len(self.stream) and (self.stream[self.pos] in self.macro_chars or self.stream[self.pos] in self.number_chars):
+			word += self.stream[self.pos]
+			self.pos += 1
+		return Token(TokenType.Macro, word)
+
+	# Processes numbers
+	def process_number(self) -> Token:
+		number = 0
+		while self.pos < len(self.stream) and self.stream[self.pos] in self.number_chars:
+			number *= 10
+			number += ord(self.stream[self.pos]) - ord('0')
+			self.pos += 1
+		return Token(TokenType.Number, number)
+
+	# Processes params
+	def process_params(self) -> Token:
+		params = []
+		try:
+			level = 1
+			self.pos += 1
+			param = ""
+			while level:
+				char = self.stream[self.pos]
+				level += char in self.open_parenthesis_chars
+				level -= char in self.close_parenthesis_chars
+				if level == 1 and char in self.separator_chars:
+					params.append(param)
+					param = ""
+				else:
+					param += char
+				self.pos += 1
+			params.append(param[:-1])
+		except IndexError:
+			raise IndexError("Lexer requieres that all parameters be contained.")
+		return Token(TokenType.Params, params)
+
+	# Gets the next token
+	def next_token(self) -> Token:
+		if self.pos >= len(self.stream): return Token(TokenType.EOF, None)
+		char = self.stream[self.pos]
+		while True:
+			if char in self.ignore_chars: self.pos += 1
+			elif char in self.comment_chars: self.process_comment()
+			else: break
+			if self.pos >= len(self.stream): return Token(TokenType.EOF, None)
+			char = self.stream[self.pos]
+		if char in self.brainfuck_chars:
+			self.pos += 1
+			return Token(TokenType.Brainfuck, char)
+		elif char in self.macro_chars: return self.process_macro()
+		elif char in self.number_chars: return self.process_number()
+		elif char in self.open_parenthesis_chars: return self.process_params()
+		raise KeyError(f"{char} is not a valid character.")
+
+# Parses and generates the compiled brainfuck.
 class Compiler:
 	placeholder_macros = ["while_run", "while_bool", "repeat", "ifel_true", "ifel_false", "MAC_"]
-	commands = ['<', '>', '-', '+', '.', ',', '[', ']']
-	skip = [' ', '\n', '\t']
-	numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-	highlights = ['@']
-	glide_based = ["searchup255", "searchdown255", "sendboolup", "sendbooldown", "sendbooldownaddress", "writeaddress", "whilememregister", "movetoaddress", "sendboolmemdownaddress", "addmemprefix", "movememprefix", "movetonextmeminternal", "movetoprevmeminternal", "movetonextmem", "movetoprevmem", "endmemaccess", "loadbinx", "savebinx", "mallocbinx", "free"]
+	glide_based = ["searchup255", "searchdown255", "sendboolup", "sendbooldown", "sendbooldownaddress", "writeaddress", "whilememregister", "movetoaddress", "sendboolmemdownaddress", "addmemprefix", "movememprefix", "movetonextmeminternal", "movetoprevmeminternal", "movetonextmem", "movetoprevmem", "endmemaccess", "loadbinx", "savebinx", "mallocbinx", "free", "kill"]
 
-	def __init__(self, code):
+	def __init__(self, code : str) -> None:
 		self.macros = {"repeat" : self.mac_placeholder,
 		 	"implant" : self.mac_implant,
 		 	"kill" : self.mac_kill,
@@ -110,7 +126,6 @@ class Compiler:
 			"while_bool" : self.mac_placeholder,
 			"while_run" : self.mac_placeholder,
 			"MAC_" : self.mac_placeholder,
-			"forb" : self.mac_forb,
 			"moveupb" : self.mac_moveupb,
 			"movedownb" : self.mac_movedownb,
 			"bin8tobyte" : self.mac_bin8tobyte,
@@ -140,7 +155,6 @@ class Compiler:
 			"eqbinx" : self.mac_eqbinx,
 			"lessbinx" : self.mac_lessbinx,
 			"greatbinx" : self.mac_greatbinx,
-			"forbinx" : self.mac_forbinx,
 			"moveupb" : self.mac_moveupb,
 			"movedownb" : self.mac_movedownb,
 			"mem" : self.mac_mem,
@@ -175,77 +189,60 @@ class Compiler:
 		self.min_mem_size += 1
 
 	# Returns the generated brainfuck code
-	def get_bf(self):
+	def get_bf(self) -> str:
 		return self.bf
 
 	# Returns the generated macro stack trace
-	def get_stack_trace_data(self):
+	def get_stack_trace_data(self) -> list[dict]:
 		return self.stack_trace_data
 
 	# Converter system
-	def convert(self, code):
+	def convert(self, code : str) -> str:
+		lexer = Lexer(code)
 		result = ""
-		pos = 0
-		number = 0
-		number_mode = False
-		while pos < len(code):
-			if code[pos] in self.commands:
-				result += code[pos]*(number + (not number and not number_mode))
-				self.pc += (number + (not number and not number_mode))
-				if code[pos] == '>' and not self.in_mem:
-					self.current_mem_size += number + (not number and not number_mode)
+		number = 1
+		token = lexer.next_token()
+		while token.type != TokenType.EOF:
+			if token.type == TokenType.Brainfuck:
+				result += token.value*number
+				self.pc += number
+				if token.value == '>' and not self.in_mem:
+					self.current_mem_size += number
 					self.min_mem_size = max(self.current_mem_size, self.min_mem_size)
-				if code[pos] == '<' and not self.in_mem: self.current_mem_size -= number + (not number and not number_mode)
-				number = 0
-				number_mode = False
-			elif code[pos] in self.numbers:
-				number_mode = True
-				number *= 10
-				number += int(code[pos])
-			elif code[pos] == '#':
-				while pos < len(code) and code[pos] != '\n': pos += 1
-			elif code[pos] in self.highlights:
-				result += code[pos]*(number + (not number and not number_mode))
-				self.pc += (number + (not number and not number_mode))
-				number = 0
-				number_mode = False
-			elif code[pos] not in self.skip:
-				macro = ""
-				while not macro or macro[-1] != '(':
-					macro += code[pos]
-					pos += 1
-				macro = macro[:-1]
-				if macro not in self.macros: raise NameError(f"The bf-macro '{macro}' is not defined (pos: {pos - len(macro)}).")
+				if token.value == '<' and not self.in_mem: self.current_mem_size -= number
+				number = 1
+			elif token.type == TokenType.Number: number = token.value
+			elif token.type == TokenType.Macro:
+				macro = token.value
+				if macro not in self.macros: raise NameError(f"The bf-macro '{macro}' is not defined (pos: {lexer.pos - len(macro)}).")
 				before_mem = self.in_mem
 				self.in_mem = macro in self.glide_based or self.in_mem
-				params = []
-				param = ""
-				level = 1
-				while level > 1 or code[pos] != ')':
-					if code[pos] == ';' and level == 1:
-						params.append(param)
-						param = ""
-					elif level > 1 or code[pos] != ')': param += code[pos]
-					level += code[pos] == '('
-					level -= code[pos] == ')'
-					pos += 1
-				params.append(param)
+				token = lexer.next_token()
+				if token.type != TokenType.Params: raise SyntaxError(f"Expected lexer type was {TokenType.Params.name} (got {token.type.name} instead).")
+				params = token.value
+				macro_id = macro if macro != "MAC_" else params[0]
+				if macro == "MAC_": params = params[1:]
 				if macro not in self.placeholder_macros or params[0]:
-					for i in range(number + (not number and not number_mode)):
+					for i in range(number):
 						if self.pc not in self.stack_trace_data[0]:
 							self.stack_trace_data[0][self.pc] = []
-						self.stack_trace_data[0][self.pc].append((macro if macro != "MAC_" else params[0]) + f"_{i}"*bool(number))
-						result += self.macros[macro](params[1])
+						self.stack_trace_data[0][self.pc].append(macro_id + f"_{i}"*(number != 1))
+						result += self.macros[macro](params)
 						if self.pc - 1 not in self.stack_trace_data[1]:
 							self.stack_trace_data[1][self.pc - 1] = []
-						self.stack_trace_data[1][self.pc - 1].insert(0, (macro if macro != "MAC_" else params[0]) + f"_{i}"*bool(number))
+						self.stack_trace_data[1][self.pc - 1].insert(0, macro_id + f"_{i}"*(number != 1))
 				self.in_mem = before_mem
-			if code[pos] not in self.numbers:
-				number = 0
-				number_mode = False
-			pos += 1
+				number = 1
+			else: raise SyntaxError(f"Unknown lexer type ({token.type.name}).")
+			token = lexer.next_token()
 		return result
-
+	
+	def param_to_number(self, param : str) -> int:
+		lexer = Lexer(param)
+		token = lexer.next_token()
+		if token.type != TokenType.Number: raise SyntaxError("This parameter expected a number.")
+		return token.value
+	
 	# Searches for value 254, which is reserved for killing the program
 	def mac_kill(self, values):
 		return self.convert("2+[2-<2+]2-")
@@ -255,8 +252,8 @@ class Compiler:
 		return self.convert(f"{values[0]}")
 
 	def mac_implant(self, values):
-		x = int(values[0])
-		v = int(values[1])
+		x = self.param_to_number(values[0])
+		v = self.param_to_number(values[1])
 		data = bin(v)[2:]
 		if len(data) >= x: data = data[len(data) - x:]
 		else: data = '0'*(x - len(data)) + data
@@ -266,32 +263,41 @@ class Compiler:
 	# Move byte up to x distance
 	# A<x>B
 	def mac_upb(self, values):
-		return self.convert(f"[-{values[0]}>>+{values[0]}<<]")
+		x = self.param_to_number(values[0])
+		return self.convert(f"[-{x}>>+{x}<<]")
 
 	# B<x>A
 	# Move byte down to x distance
 	def mac_downb(self, values):
-		return self.convert(f"[-{values[0]}<<+{values[0]}>>]")
+		x = self.param_to_number(values[0])
+		return self.convert(f"[-{x}<<+{x}>>]")
 
 	# B = A
 	# A<x>B.
 	def mac_copyb(self, values):
-		return self.convert("[-x>>+>+<<x<]x>>>[-x<<<+x>>>]x<<<".replace('x', values[0]))
+		x = self.param_to_number(values[0])
+		return self.convert(f"[-{x}>>+>+<<{x}<]{x}>>>[-{x}<<<+{x}>>>]{x}<<<")
 	
 	# Moves a group of variables up
 	# (A*x)<y>(B*x).
 	def mac_upbinx(self, values):
-		return self.convert(f"{values[0]}>{values[0]}repeat(<upb({values[1]}))")
+		x = self.param_to_number(values[0])
+		y = self.param_to_number(values[1])
+		return self.convert(f"{x}>{x}repeat(<upb({y}))")
 
 	# Moves a group of variables down
 	# (A*x)<y>(B*x).
 	def mac_downbinx(self, values):
-		return self.convert(f"{values[0]}repeat(downb({values[1]})>){values[0]}<")
+		x = self.param_to_number(values[0])
+		y = self.param_to_number(values[1])
+		return self.convert(f"{x}repeat(downb({y})>){x}<")
 
 	# Copies a group of variables
 	# (A*x)<y>(B*x).
 	def mac_copybinx(self, values):
-		return self.convert(f"copyb({values[1]}){int(values[0]) - 1}repeat(>copyb({values[1]})){int(values[0]) - 1}<")
+		x = self.param_to_number(values[0])
+		y = self.param_to_number(values[1])
+		return self.convert(f"copyb({y}){x - 1}repeat(>copyb({y})){x - 1}<")
 
 	# A += B
 	# AB
@@ -363,11 +369,6 @@ class Compiler:
 	def mac_while(self, values):
 		return self.convert(f"while_bool({values[0]})bool()[-while_run({values[1]})while_bool({values[0]})bool()]")
 
-	# For i in range(A): execute values[0] 
-	# AIi? (where i is the variable you can edit)
-	def mac_forb(self, values):
-		return self.convert(f"[->>{values[0]}<+copyb(0)<]>[-]>[-]<<")
-
 	# Constructs a byte from binary data and puts it into A
 	# A8.
 	def mac_bin8tobyte(self, values):
@@ -389,7 +390,7 @@ class Compiler:
 	# Prints out the binary information AX
 	# AX.
 	def mac_printbinx(self, values):
-		x = int(values[0])
+		x = self.param_to_number(values[0])
 		return self.convert(f"{x}repeat(48+.[-]>){x}<")
 
 	# Prints TRUE or FALSE respectively
@@ -399,7 +400,7 @@ class Compiler:
 
 	# Prints an integer (at least 4 bits)
 	def mac_printintbinx(self, values):
-		x = int(values[0])
+		x = self.param_to_number(values[0])
 		bx = 1 << x
 		ten = 1
 		while ten*10 < bx: ten *= 10
@@ -419,67 +420,72 @@ class Compiler:
 
 	# At least bin4
 	def mac_getintbinx(self, values):
-		x = int(values[0])
+		x = self.param_to_number(values[0])
 		return self.convert(f"{x}>while(,48-copyb(0)2>10+<lessb();<upb({6*x + 11})implant({x};10){x}<multbinx({x}){7*x + 12}>downb({6*x + 11}){6*x + 12}<{x - 4}repeat(upb(0)>)digitbin4(){2*x - 4}<addbinx({x}){x}>)<[-]{x}<")
 
 	def mac_getbinx(self, values):
-		x = int(values[0])
+		x = self.param_to_number(values[0])
 		return self.convert(f"{x}repeat(,48-bool()>){x}<")
 
 	# Sets a binx value to 0
 	# AX
 	def mac_cleanbinx(self, values):
-		return self.convert(f"[-]{int(values[0]) - 1}repeat(>[-]){int(values[0]) - 1}<")
+		x = self.param_to_number(values[0])
+		return self.convert(f"[-]{x - 1}repeat(>[-]){x - 1}<")
 
 	# Gets boolean value of AX
 	# AX
 	def mac_boolbinx(self, values):
-		return self.convert(f"{int(values[0]) - 1}>{int(values[0]) - 1}repeat(<or())")
+		x = self.param_to_number(values[0])
+		return self.convert(f"{x - 1}>{x - 1}repeat(<or())")
 
 	# Gets not value of AX
 	# AX..
 	def mac_notbinx(self, values):
-		return self.convert(f"{values[0]}>{values[0]}repeat(<not()upb(0))>downbinx(8;0)<")
+		x = self.param_to_number(values[0])
+		return self.convert(f"{x}>{x}repeat(<not()upb(0))>downbinx(8;0)<")
 
 	# AX and BX
 	# AXBX.
 	def mac_andbinx(self, values):
-		return self.convert(f"x>xrepeat(<upb({int(values[0]) - 1})x>>++<eqb()downb({int(values[0]) - 1})x<)".replace('x', values[0]))
+		x = self.param_to_number(values[0])
+		return self.convert(f"{x}>{x}repeat(<upb({x - 1}){x}>>++<eqb()downb({x - 1}){x}<)")
 
 	# AX or BX
 	# AXBX.
 	def mac_orbinx(self, values):
-		return self.convert(f"x>xrepeat(<upb({int(values[0]) - 1})x>bool()downb({int(values[0]) - 1})x<)".replace('x', values[0]))
+		x = self.param_to_number(values[0])
+		return self.convert(f"{x}>{x}repeat(<upb({x - 1}){x}>bool()downb({x - 1}){x}<)")
 	
 	# AX += BX
 	# AXBX.........
 	def mac_addbinx(self, values):
-		x = int(values[0])
+		x = self.param_to_number(values[0])
 		x1 = x + 9
 		return self.convert(f"{x}>{x}repeat(<upb({x+3}){x}>upb({6})>ifel(>ifel(>ifel(9<+{x}<+{x1}>;9<+9>)<;>ifel(9<+9>;{x1}<+{x1}>)<)<;>ifel(>ifel(9<+9>;{x1}<+{x1}>)<;>ifel({x1}<+{x1}>;)<)<){x + 1}<){x}>[-]{x}<")
 
 	# AX -= BX
 	# AXBX.........
 	def mac_subbinx(self, values):
-		x = int(values[0])
+		x = self.param_to_number(values[0])
 		x1 = x + 9
 		return self.convert(f"{x}>{x}repeat(<upb({x+3}){x}>upb({6})>ifel(>ifel(>ifel(9<+{x}<+{x1}>;)<;>ifel(9<+9>;9<+{x}<+{x1}>)<)<;>ifel(>ifel(;{x1}<+{x1}>)<;>ifel(9<+{x}<+{x1}>;)<)<){x + 1}<){x}>[-]{x}<")
 
 	def mac_rshiftbinx(self, values):
-		x = int(values[0])
+		x = self.param_to_number(values[0])
 		return self.convert(f"{x - 1}>[-]{x - 1}repeat(<upb(0))")
 
 	def mac_lshiftbinx(self, values):
-		x = int(values[0])
+		x = self.param_to_number(values[0])
 		return self.convert(f"[-]{x - 1}repeat(>downb(0)){x - 1}<")
 
 	def mac_multbinx(self, values):
-		x = int(values[0])
+		x = self.param_to_number(values[0])
 		return self.convert(f"{x}>upbinx({x};{x + 1}){x}repeat(<ifel(>copybinx({2*x};{4*x - 1}){2*x}>addbinx({2*x}){2*x + 1}<;)3>lshiftbinx({2*x}){2+x}<rshiftbinx({x}){x}>)2>cleanbinx({2*x})@{2*x}>{x}lshiftbinx({2*x})downbinx({x};{x + 2 + 2*x - 1}){x + 2 + 2*x}<")
 	
 	# Min x size: 4
 	def mac_divbinx(self, values):
-		x = int(values[0])
+		x = self.param_to_number(values[0])
 		return self.convert(f"""upbinx({x};{3*x - 1}){x}>copybinx({x};{3*x - 1}){3*x}>eqbinx({x})ifel(kill();)implant({x};{x})while(
 				while(
 					{3*x}<copybinx({2*x};{4*x - 1}){2*x}>copybinx({x};{5*x - 1}){2*x}>greatbinx({2*x})not()copyb(1)2>not()ifel(
@@ -495,21 +501,21 @@ class Compiler:
 
 	# Min x size: 4
 	def mac_modbinx(self, values):
-		x = int(values[0])
+		x = self.param_to_number(values[0])
 		return self.convert(f"2repeat(copybinx({x};{2*x - 1}){x}>)divbinx({x}){x}<multbinx({x}){x}<subbinx({x})")
 
 	def mac_diffbinx(self, values):
-		x = int(values[0])
+		x = self.param_to_number(values[0])
 		return self.convert(f"subbinx({x})boolbinx({x})")
 
 	def mac_eqbinx(self, values):
-		x = int(values[0])
+		x = self.param_to_number(values[0])
 		return self.convert(f"subbinx({x})boolbinx({x})not()")
 	
 	def mac_lessbinx(self, values):
-		x = int(values[0])
+		x = self.param_to_number(values[0])
 		return self.convert(f"""copybinx({x};{2*x - 1}){x}>copybinx({x};{2*x - 1}){x}>diffbinx({x})upb(0)>ifel(
-		      3<while(
+			  3<while(
 				{2*x}<copyb({2*x - 1}){x}>copyb({x}){x}>eqb()
 				;
 				2repeat({x}<lshiftbinx({x})){2*x}>
@@ -517,17 +523,14 @@ class Compiler:
 			  	{2*x}<upb({2*x + 3}){x}>upb({x}){x + 1}>ifel(>ifel(;6<+6>)<;)2>;){2*x + 1}<cleanbinx({2*x}){2*x}>downb({2*x - 1}){2*x}<""")
 	
 	def mac_greatbinx(self, values):
-		x = int(values[0])
+		x = self.param_to_number(values[0])
 		return self.convert(f"""copybinx({x};{2*x - 1}){x}>copybinx({x};{2*x - 1}){x}>diffbinx({x})upb(0)>ifel(
-		      3<while(
+			  3<while(
 				{2*x}<copyb({2*x - 1}){x}>copyb({x}){x}>eqb()
 				;
 				2repeat({x}<lshiftbinx({x})){2*x}>
 			  )
 			  	{2*x}<upb({2*x + 3}){x}>upb({x}){x + 1}>ifel(;>ifel(6<+6>;)<)2>;){2*x + 1}<cleanbinx({2*x}){2*x}>downb({2*x - 1}){2*x}<""")
-	
-	def mac_forbinx(self, values):
-		return self.convert("")
 
 	# Deprecated
 	def mac_moveupb(self, values):
@@ -545,9 +548,11 @@ class Compiler:
 	# values[1] determines the number of memory bit/byte cells
 	# The last reserved byte is set to 243 as a memory delimiter for mallocbinx
 	def mac_mem(self, values):
-		self.memory_address_size = int(values[0])
+		x = self.param_to_number(values[0])
+		y = self.param_to_number(values[1])
+		self.memory_address_size = x
 		self.has_memory = True
-		return self.convert(f"-{1 + int(values[0])*2 + 9 + int(values[1])*4}>3-4>")
+		return self.convert(f"-{1 + self.memory_address_size*2 + 9 + y*4}>3-4>")
 
 	# Looks up to find a cell equal to 255
 	def mac_searchup255(self, values):
@@ -640,20 +645,23 @@ class Compiler:
 	# max(BY, binx)
 	def mac_loadbinx(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
-		return self.convert(f"writeaddress()movetoaddress()-searchdown255(){self.memory_address_size + 1}movetonextmeminternal(){values[0]}repeat(sendboolup()movetonextmeminternal())+searchup255()+{values[0]}<")
+		x = self.param_to_number(values[0])
+		return self.convert(f"writeaddress()movetoaddress()-searchdown255(){self.memory_address_size + 1}movetonextmeminternal(){x}repeat(sendboolup()movetonextmeminternal())+searchup255()+{x}<")
 	
 	# Saves AX to address BY
 	# AXBY..
 	def mac_savebinx(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
-		return self.convert(f"{values[0]}>writeaddress()movetoaddress()-searchdown255(){int(values[0]) + self.memory_address_size}movetonextmeminternal()searchup255()+{values[0]}repeat(<sendbooldown())endmemaccess()")
+		x = self.param_to_number(values[0])
+		return self.convert(f"{x}>writeaddress()movetoaddress()-searchdown255(){x + self.memory_address_size}movetonextmeminternal()searchup255()+{x}repeat(<sendbooldown())endmemaccess()")
 
 	# Occupies the first memory chunk with sufficient size. Stops the program if no space is found
 	# Y. (ie, empty stack input for the placement of the pointer) (specify in the params the size that is required)
 	def mac_mallocbinx(self, values):
+		x = self.param_to_number(values[0])
 		binary1 = bin(self.memory_address_size)[2:]
 		binary1 = '0'*(self.memory_address_size - len(binary1)) + binary1
-		binary2 = bin(int(values[0]))[2:]
+		binary2 = bin(x)[2:]
 		binary2 = '0'*(self.memory_address_size - len(binary2)) + binary2
 		writebin1 = ''.join([f">[-]{i}+" for i in binary1])
 		writebin2 = ''.join([f"4>[-]{i}+" for i in binary2])
@@ -670,7 +678,7 @@ while(<copyb(0)>3+ifel(;kill())<copyb(0)>ifel(
 			searchup255(){self.memory_address_size*2}>+{self.memory_address_size*2}<>addbinx({self.memory_address_size})<searchdown255()
 		searchdown255())searchup255()+searchup255()2+
 		# If current space is 0, check if it has enough space for another memory chunk
-		;<->{self.memory_address_size}repeat(4>)-{values[0]}repeat(movetonextmeminternal()+3<copyb(0)>3+ifel(;kill())<copyb(0)>ifel(-searchdown255()>[-]+searchup255();-)2>)+searchdown255()+>)2>downb(1)2<
+		;<->{self.memory_address_size}repeat(4>)-{x}repeat(movetonextmeminternal()+3<copyb(0)>3+ifel(;kill())<copyb(0)>ifel(-searchdown255()>[-]+searchup255();-)2>)+searchdown255()+>)2>downb(1)2<
 	# Sum one to the malloced address
 	;2>-searchup255(){self.memory_address_size*2}>+{self.memory_address_size*2}<>addbinx({self.memory_address_size})<searchdown255()movetonextmeminternal()+2<)
 # Write the size data to indicate the size of the new memory chunk
@@ -683,217 +691,6 @@ while(<copyb(0)>3+ifel(;kill())<copyb(0)>ifel(
 	def mac_free(self, values):
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"writeaddress()movetoaddress()-searchdown255()movememprefix(){self.memory_address_size - 1}movetonextmeminternal()4>-2searchdown255()whilememregister(searchup255()movetonextmeminternal()3<[-]3>searchdown255())2searchup255()+searchdown255()2movetonextmeminternal(){self.memory_address_size + 1}repeat(movetoprevmeminternal()3<[-]3>)+searchup255()+")
-
-class BinX:
-	def __init__(self, x, offset, protected=False):
-		self.x = x
-		self.offset = offset
-		self.protected = protected
 	
-	def clear(self, forced=False):
-		if self.protected and not forced: raise AttributeError("Protected variables cannot be altered.")
-		return f"{self.offset}>clearbinx({self.x}){self.offset}<"
-
-	def setas(self, var):
-		if self.protected: raise AttributeError("Protected variables cannot be altered.")
-		if self.offset == var.offset: raise AttributeError(f"Variables can't share offsets.")
-		if self.x != var.x: raise AttributeError(f"Setter and settee must have same size ({self.x} != {var.x}).")
-		if self.offset < var.offset: return self.clear() + f"{var.offset}>downbinx({self.x};{var.offset - self.offset - 1}){var.offset}<"
-		return self.clear() + f"{var.offset}>upbinx({self.x};{self.offset - var.offset - 1}){var.offset}<"
-
-	def copytotop(self, var, top_offset):
-		if self.protected: raise AttributeError("Protected variables cannot be altered.")
-		if self.offset >= var.offset or top_offset - var.x != var.offset: raise AttributeError(f"Variables can only be copied to the top of the stack.")
-		if self.x != var.x: raise AttributeError(f"Destination must have the same size as the original variable ({var.x} != {self.x}).")
-		return f"{var.offset}>upbinx({self.x};{self.offset - var.offset - 1}){var.offset}<"
-
-class Group:
-	def __init__(self, name, components):
-		self.name = name
-		if not len(components): raise IndexError(f"Groups requieres at least one component.")
-		self.components = components
-		self.x = 0
-		for component in self.components:
-			if component < 1: raise AttributeError(f"All components in a group have to possess a size of at least 1.")
-			self.x += component
-
-class BinXManager(dict):
-	def __init__(self, relative_offset):
-		self.relative_offset = relative_offset
-		self.offset = 0
-		self.components = []
-		self.is_finalized = False
-	
-	def add(self, name, x):
-		if self.is_finalized: raise ReferenceError("This BinXManager has already been finalized.")
-		var = BinX(x, self.offset)
-		self[name] = var
-		self.offset += x
-		self.components.append([name, var])
-
-	def rename(self, name, new_name):
-		var = self[name]
-		del self[name]
-		self[new_name] = var
-
-	# inplace
-	def split(self, name, group):
-		if self.is_finalized: raise ReferenceError("This BinXManager has already been finalized.")
-		var = self[name]
-		if var.x != group.x: raise AttributeError(f"Cannot split BinX of size {var.x} into group of size {group.x}.")
-		del self[name]
-		pos = 0
-		while self.components[pos].x != var.x: pos += 1
-		self.components.pop(pos)
-		i_var = var
-		for i in range(len(group.components)):
-			i_var.x = group.componentes[i]
-			self.components.insert(pos, i_var)
-			self[name + '.' + group.name + '.' + str(i)] = i_var
-			pos += 1
-			i_var = BinX(0, i_var.offset + i_var.x)
-
-	def inplace_merge(self, name, group, new_name=None):
-		if not new_name: new_name = name + '.' + group.name
-		if self.is_finalized: raise ReferenceError("This BinXManager has already been finalized.")
-		var = self[name]
-		pos = 0
-		while self.components[pos][1].x != var.x: pos += 1
-		subpos = pos
-		for i in range(len(group.components)):
-			if group.components[i].x != self.components[subpos][1].x: raise AttributeError(f"Cannot merge BinX of size {self.components[subpos].x} into group of size {group.x}.")
-			subpos += 1
-		pos += 1
-		del self[name]
-		var.x = group.x
-		self[new_name] = var
-		for i in range(1, len(group.components)):
-			pop_var_name = self.components.pop(pos)[1]
-			del self[pop_var_name]
-		
-	def merge(self, names, group, new_name=None):
-		if not new_name: new_name = names[0] + '.' + group.name
-		if self.is_finalized: raise ReferenceError("This BinXManager has already been finalized.")
-		data = ""
-		for i in range(len(names)):
-			var = self[names[i]]
-			self.add(new_name + '.' + str(i), var.x)
-			data += var.copytotop(self[new_name + '.' + str(i)], self.offset)
-		self.inplace_merge(new_name + ".0", group, new_name)
-		return data
-
-	def pop(self, forced=False):
-		if self.is_finalized: raise ReferenceError("This BinXManager has already been finalized.")
-		var_name, var = self.components.pop()
-		if var.protected and not forced: raise AttributeError("Protected variables cannot be popped.")
-		del self[var_name]
-		self.offset -= var.x
-		return var.clear()
-
-	def swap(self, name_1, name_2):
-		if self.is_finalized: raise ReferenceError("This BinXManager has already been finalized.")
-		if var_1.x != var_2.x: raise AttributeError(f"{name_1} ({name_1.x}) and {name_2} ({name_2.x}) have different sizes.")
-		var_1 = self[name_1]
-		var_2 = self[name_2]
-		var_3 = BinX(var_1.x, self.offset)
-		return var_3.setas(var_2) + var_2.setas(var_1) + var_1.setas(var_3) + self.pop()
-
-	# return
-	def finalize(self, name):
-		if self.is_finalized: raise ReferenceError("This BinXManager has already been finalized.")
-		var = self[name]
-		data = ""
-		for component in self.components:
-			if component[1] != var: data += component[1].clear(True)
-		new_var = BinX(var.x, 0)
-		if var.protected: raise AttributeError("Protected variables cannot be finalize.")
-		if var.offset: data += new_var.setas(var)
-		self.offset = var.x
-		self.is_finalized = True
-		new_var.offset = self.relative_offset
-		return data, new_var
-	
-	def finalize(self):
-		if self.is_finalized: raise ReferenceError("This BinXManager has already been finalized.")
-		data = ""
-		for component in self.components: data += component[1].clear(True)
-		self.is_finalized = True
-		self.offset = 0
-		return data
-
-	def __setitem__(self, __key, __value):
-		raise KeyError("BinxManager uses add(self, name, x).")
-	
-	def __getitem__(self, __key):
-		if self.is_finalized: raise ReferenceError("This BinXManager has already been finalized.")
-		return super().__getitem__(__key)
-
-# TODO pointless?
-class SmallMacro:
-	def __init__(self, components, result):
-		self.components = components
-		self.result = result
-
-# TODO merge into Precompiler and promote correct lexographical analyzer 
-class BigMacro:
-	reserved_words = ["setas", "clear", "invite", "void", "while", "ifel", "finalize", "swap", "pop", "merge", "imerge", "split"]
-
-	def __init__(self, groups, name, params, output, code, offset):
-		self.groups = groups
-		self.name = name
-		self.params = params
-		self.output = output
-		self.code = code
-		self.data = "MAC_(" + self.name + ";"
-		self.variables = BinXManager(offset)
-		self.finalized = False
-		self.process()
-		self.data += ')'
-	
-	def process(self):
-		i = 0
-		while i < len(self.code) and not self.finalized:
-			commands = self.code[i].split()
-			if commands[0] == "clear":
-				data += self.variables[commands[1]].clear()
-			elif commands[0] == "invite":
-				pass
-			elif commands[0] == "void":
-				data += BinX()
-			elif commands[0] == "while":
-				pass
-			elif commands[0] == "ifel":
-				pass
-			elif commands[0] == "finalize":
-				self.finalized = True
-				if len(commands) - 1: data += self.variables.finalize(commands[1])
-				else: data += self.variables.finalize()
-			elif commands[0] == "pop":
-				data += self.variables.pop()
-			else:
-				raise NameError(f"Couldn't find an instruction on line {i}: {self.code[i]}")
-			i += 1
-	
-	def execute_mac(self, code):
-		pass
-
-# TODO create
-class Precompiler:
-	def __init__(self, code):
-		self.macros = []
-		self.code = code.split('\n')
-		self.find_macros(code)
-
-	def find_macros(self, code):
-		pass
-
-	def convert(self, code):
-		pass
-
-	def process_math(self, code):
-		pass
-
 if __name__ == "__main__":
-	# importlib.reload(brainfuck)
-    # brainfuck.Interpreter(brainfuck.Converter(">>+>+>>+>>7<multbinx(4)"), True, 50).run()
-	Interpreter(Compiler(input())).run(True)
+	pass
