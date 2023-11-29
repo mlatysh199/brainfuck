@@ -1,0 +1,38 @@
+nzdigit ::= "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+digit ::= "0" | nzdigit
+const ::= "0" | "-"? nzdigit digit*
+chars ::= "A" | "B" | "C" | "D" | "E" | "F" | "G"
+       | "H" | "I" | "J" | "K" | "L" | "M" | "N"
+       | "O" | "P" | "Q" | "R" | "S" | "T" | "U"
+       | "V" | "W" | "X" | "Y" | "Z" | "a" | "b"
+       | "c" | "d" | "e" | "f" | "g" | "h" | "i"
+       | "j" | "k" | "l" | "m" | "n" | "o" | "p"
+       | "q" | "r" | "s" | "t" | "u" | "v" | "w"
+       | "x" | "y" | "z" | "_"
+string ::= chars+
+breaker ::= "\n" | ";"
+const_op ::= "**" | "*" | "/" | "+" | "-" | "<<" | ">>" | "&" | "|" | "^"
+u_const_op ::= "~" | "-"
+separator ::= ","
+const_var ::= const_name
+    | const
+    | "(" const_var ")"
+    | u_const_op const_var
+    | const_var const_op const_var
+var_def ::= string "(" const_var ")"
+group_def ::= string "{" var_def (separator var_def)* "}"
+group_access ::= string "(" string ")" ">" string
+group_creation ::= string "{" string (separator string)* "}"
+macro_inv ::= string "[" (string | const_var) (separator (string | const_var))* "]"
+move ::= (string | group_access) "<" (string | const_var | group_access | macro_inv)
+set ::= (string | group_access) "<=" (string | group_access)
+const_def ::= string "=" const_var
+create ::= string "=" (string | group_creation | group_access | macro_inv | const_var)
+    | const_def
+    | var_def
+while ::= string "[" statement* "]"
+ifel ::= string "[" statement* "]" "["  statement* "]"
+for ::= const_var "[" statement* "]"
+statement ::= (create | move | set | macro_inv)? breaker | (while | ifel | for)
+macro_def ::= (const_var | "void") string "[" (var_def | string) (separator (var_def | string))* "]" "[" statement* "]"
+grammar ::= (const_def | group_def | macro_def)+

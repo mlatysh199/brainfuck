@@ -244,14 +244,14 @@ class Compiler:
 		return token.value
 	
 	# Searches for value 254, which is reserved for killing the program
-	def mac_kill(self, values):
+	def mac_kill(self, values : list[str]) -> str:
 		return self.convert("2+[2-<2+]2-")
 
 	# Placeholder function
-	def mac_placeholder(self, values):
+	def mac_placeholder(self, values : list[str]) -> str:
 		return self.convert(f"{values[0]}")
 
-	def mac_implant(self, values):
+	def mac_implant(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		v = self.param_to_number(values[1])
 		data = bin(v)[2:]
@@ -262,144 +262,144 @@ class Compiler:
 
 	# Move byte up to x distance
 	# A<x>B
-	def mac_upb(self, values):
+	def mac_upb(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"[-{x}>>+{x}<<]")
 
 	# B<x>A
 	# Move byte down to x distance
-	def mac_downb(self, values):
+	def mac_downb(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"[-{x}<<+{x}>>]")
 
 	# B = A
 	# A<x>B.
-	def mac_copyb(self, values):
+	def mac_copyb(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"[-{x}>>+>+<<{x}<]{x}>>>[-{x}<<<+{x}>>>]{x}<<<")
 	
 	# Moves a group of variables up
 	# (A*x)<y>(B*x).
-	def mac_upbinx(self, values):
+	def mac_upbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		y = self.param_to_number(values[1])
 		return self.convert(f"{x}>{x}repeat(<upb({y}))")
 
 	# Moves a group of variables down
 	# (A*x)<y>(B*x).
-	def mac_downbinx(self, values):
+	def mac_downbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		y = self.param_to_number(values[1])
 		return self.convert(f"{x}repeat(downb({y})>){x}<")
 
 	# Copies a group of variables
 	# (A*x)<y>(B*x).
-	def mac_copybinx(self, values):
+	def mac_copybinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		y = self.param_to_number(values[1])
 		return self.convert(f"copyb({y}){x - 1}repeat(>copyb({y})){x - 1}<")
 
 	# A += B
 	# AB
-	def mac_addb(self, values):
+	def mac_addb(self, values : list[str]) -> str:
 		return self.convert(">downb(0)<")
 
 	# A -= B
 	# AB
-	def mac_subb(self, values):
+	def mac_subb(self, values : list[str]) -> str:
 		return self.convert(">[-<->]<")
 
 	# A *= B
 	# AB..
-	def mac_multb(self, values):
+	def mac_multb(self, values : list[str]) -> str:
 		return self.convert(">[-<copyb(1)>]<[-]>>downb(1)<<")
 
 	# A = A/B, B = A%B
 	# AB...........
-	def mac_divb(self, values):
+	def mac_divb(self, values : list[str]) -> str:
 		return self.convert("[2repeat(copyb(2)>)>lessb()ifel(5<upb(4)5>;3<+<copyb(4)<subb()6>downb(4)<)3<]>[-]>downb(1)3>downb(3)5<")
 
 	# A != B
 	# AB
-	def mac_diffb(self, values):
+	def mac_diffb(self, values : list[str]) -> str:
 		return self.convert("subb()bool()")
 
 	# A == B
 	# AB
-	def mac_eqb(self, values):
+	def mac_eqb(self, values : list[str]) -> str:
 		return self.convert("diffb()not()")
 
 	# A < B
 	# AB........
-	def mac_lessb(self, values):
+	def mac_lessb(self, values : list[str]) -> str:
 		return self.convert("2repeat(copyb(1)>)diffb()ifel(3<[-<copyb(1)2>ifel(4<-4>;3<[-]4>+<)<]<[-]>[-]4>downb(4)<;4<[-]>[-]3>)2<")
 
 	# A > B
 	# AB........
-	def mac_greatb(self, values):
+	def mac_greatb(self, values : list[str]) -> str:
 		return self.convert("upb(1)2repeat(>downb(0))<<lessb()")
 
 	# A > 0
 	# A.
-	def mac_bool(self, values):
+	def mac_bool(self, values : list[str]) -> str:
 		return self.convert("[[-]>+<]addb()")
 
 	# not A
 	# A.
-	def mac_not(self, values):
+	def mac_not(self, values : list[str]) -> str:
 		return self.convert("bool()-[+>+<]addb()")
 
 	# A && B
 	# AB.
-	def mac_and(self, values):
+	def mac_and(self, values : list[str]) -> str:
 		return self.convert(">bool()upb(0)<bool()>>downb(0)<<addb()>++<eqb()")
 
 	# A || B
 	# AB
-	def mac_or(self, values):
+	def mac_or(self, values : list[str]) -> str:
 		return self.convert("addb()bool()")
 
 	# If not A then execute code one, otherwise code 2
 	# A.?
-	def mac_ifel(self, values):
+	def mac_ifel(self, values : list[str]) -> str:
 		return self.convert(f"bool()[->>ifel_true({values[0]})<+<]->downb(0)<[+>>ifel_false({values[1]})<<]")
 	
 	# While values[0] (where that code gives represents a condition): execute values[1]
 	# .. (because of the bool)
-	def mac_while(self, values):
+	def mac_while(self, values : list[str]) -> str:
 		return self.convert(f"while_bool({values[0]})bool()[-while_run({values[1]})while_bool({values[0]})bool()]")
 
 	# Constructs a byte from binary data and puts it into A
 	# A8.
-	def mac_bin8tobyte(self, values):
+	def mac_bin8tobyte(self, values : list[str]) -> str:
 		return self.convert("[-8>128+8<]>[-7>64+7<]>[-6>32+6<]>[-5>16+5<]>[-4>8+4<]>[-3>4+3<]>[->>2+<<]>[->1+<]>downb(7)8<")
 
 	# Constructs binary information from A
 	# A8...........
-	def mac_bytetobin8(self, values):
+	def mac_bytetobin8(self, values : list[str]) -> str:
 		return self.convert(">128+<divb()>>64+<divb()>>32+<divb()>>16+<divb()>>8+<divb()>>4+<divb()>>2+<divb()6<")
 
-	def mac_digitbin4(self, values):
+	def mac_digitbin4(self, values : list[str]) -> str:
 		return self.convert(">8+<divb()>>4+<divb()>>2+<divb()2<")
 
 	# Prints out the byte A
 	# A............
-	def mac_printb(self, values):
+	def mac_printb(self, values : list[str]) -> str:
 		return self.convert(">100+<divb()[48+.[-]]addb()>10+<divb()[48+.[-]]addb()48+.[-]")
 
 	# Prints out the binary information AX
 	# AX.
-	def mac_printbinx(self, values):
+	def mac_printbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"{x}repeat(48+.[-]>){x}<")
 
 	# Prints TRUE or FALSE respectively
 	# A..
-	def mac_printbool(self, values):
+	def mac_printbool(self, values : list[str]) -> str:
 		return self.convert("ifel(84+.2-.3+.16-.[-];70+.5-.11+.7+.14-.[-])")
 
 	# Prints an integer (at least 4 bits)
-	def mac_printintbinx(self, values):
+	def mac_printintbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		bx = 1 << x
 		ten = 1
@@ -410,81 +410,81 @@ class Compiler:
 			ten //= 10
 		return self.convert(data)
 
-	def mac_printdigit(self, values):
+	def mac_printdigit(self, values : list[str]) -> str:
 		return self.convert(f"[-4>8+4<]>[-3>4+3<]>[-2>2+2<]>[->+<]>48+.[-]4<")
 
 	# Prints a line change
 	# .
-	def mac_endl(self, values):
+	def mac_endl(self, values : list[str]) -> str:
 		return self.convert("10+.[-]")
 
 	# At least bin4
-	def mac_getintbinx(self, values):
+	def mac_getintbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"{x}>while(,48-copyb(0)2>10+<lessb();<upb({6*x + 11})implant({x};10){x}<multbinx({x}){7*x + 12}>downb({6*x + 11}){6*x + 12}<{x - 4}repeat(upb(0)>)digitbin4(){2*x - 4}<addbinx({x}){x}>)<[-]{x}<")
 
-	def mac_getbinx(self, values):
+	def mac_getbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"{x}repeat(,48-bool()>){x}<")
 
 	# Sets a binx value to 0
 	# AX
-	def mac_cleanbinx(self, values):
+	def mac_cleanbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"[-]{x - 1}repeat(>[-]){x - 1}<")
 
 	# Gets boolean value of AX
 	# AX
-	def mac_boolbinx(self, values):
+	def mac_boolbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"{x - 1}>{x - 1}repeat(<or())")
 
 	# Gets not value of AX
 	# AX..
-	def mac_notbinx(self, values):
+	def mac_notbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"{x}>{x}repeat(<not()upb(0))>downbinx(8;0)<")
 
 	# AX and BX
 	# AXBX.
-	def mac_andbinx(self, values):
+	def mac_andbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"{x}>{x}repeat(<upb({x - 1}){x}>>++<eqb()downb({x - 1}){x}<)")
 
 	# AX or BX
 	# AXBX.
-	def mac_orbinx(self, values):
+	def mac_orbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"{x}>{x}repeat(<upb({x - 1}){x}>bool()downb({x - 1}){x}<)")
 	
 	# AX += BX
 	# AXBX.........
-	def mac_addbinx(self, values):
+	def mac_addbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		x1 = x + 9
 		return self.convert(f"{x}>{x}repeat(<upb({x+3}){x}>upb({6})>ifel(>ifel(>ifel(9<+{x}<+{x1}>;9<+9>)<;>ifel(9<+9>;{x1}<+{x1}>)<)<;>ifel(>ifel(9<+9>;{x1}<+{x1}>)<;>ifel({x1}<+{x1}>;)<)<){x + 1}<){x}>[-]{x}<")
 
 	# AX -= BX
 	# AXBX.........
-	def mac_subbinx(self, values):
+	def mac_subbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		x1 = x + 9
 		return self.convert(f"{x}>{x}repeat(<upb({x+3}){x}>upb({6})>ifel(>ifel(>ifel(9<+{x}<+{x1}>;)<;>ifel(9<+9>;9<+{x}<+{x1}>)<)<;>ifel(>ifel(;{x1}<+{x1}>)<;>ifel(9<+{x}<+{x1}>;)<)<){x + 1}<){x}>[-]{x}<")
 
-	def mac_rshiftbinx(self, values):
+	def mac_rshiftbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"{x - 1}>[-]{x - 1}repeat(<upb(0))")
 
-	def mac_lshiftbinx(self, values):
+	def mac_lshiftbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"[-]{x - 1}repeat(>downb(0)){x - 1}<")
 
-	def mac_multbinx(self, values):
+	def mac_multbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"{x}>upbinx({x};{x + 1}){x}repeat(<ifel(>copybinx({2*x};{4*x - 1}){2*x}>addbinx({2*x}){2*x + 1}<;)3>lshiftbinx({2*x}){2+x}<rshiftbinx({x}){x}>)2>cleanbinx({2*x})@{2*x}>{x}lshiftbinx({2*x})downbinx({x};{x + 2 + 2*x - 1}){x + 2 + 2*x}<")
 	
 	# Min x size: 4
-	def mac_divbinx(self, values):
+	def mac_divbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"""upbinx({x};{3*x - 1}){x}>copybinx({x};{3*x - 1}){3*x}>eqbinx({x})ifel(kill();)implant({x};{x})while(
 				while(
@@ -500,19 +500,19 @@ class Compiler:
 			  ){4*x}<cleanbinx({3*x}){x}<""")
 
 	# Min x size: 4
-	def mac_modbinx(self, values):
+	def mac_modbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"2repeat(copybinx({x};{2*x - 1}){x}>)divbinx({x}){x}<multbinx({x}){x}<subbinx({x})")
 
-	def mac_diffbinx(self, values):
+	def mac_diffbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"subbinx({x})boolbinx({x})")
 
-	def mac_eqbinx(self, values):
+	def mac_eqbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"subbinx({x})boolbinx({x})not()")
 	
-	def mac_lessbinx(self, values):
+	def mac_lessbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"""copybinx({x};{2*x - 1}){x}>copybinx({x};{2*x - 1}){x}>diffbinx({x})upb(0)>ifel(
 			  3<while(
@@ -522,7 +522,7 @@ class Compiler:
 			  )
 			  	{2*x}<upb({2*x + 3}){x}>upb({x}){x + 1}>ifel(>ifel(;6<+6>)<;)2>;){2*x + 1}<cleanbinx({2*x}){2*x}>downb({2*x - 1}){2*x}<""")
 	
-	def mac_greatbinx(self, values):
+	def mac_greatbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		return self.convert(f"""copybinx({x};{2*x - 1}){x}>copybinx({x};{2*x - 1}){x}>diffbinx({x})upb(0)>ifel(
 			  3<while(
@@ -533,11 +533,11 @@ class Compiler:
 			  	{2*x}<upb({2*x + 3}){x}>upb({x}){x + 1}>ifel(;>ifel(6<+6>;)<)2>;){2*x + 1}<cleanbinx({2*x}){2*x}>downb({2*x - 1}){2*x}<""")
 
 	# Deprecated
-	def mac_moveupb(self, values):
+	def mac_moveupb(self, values : list[str]) -> str:
 		return self.convert("[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[->]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]>]")
 	
 	# Deprecated
-	def mac_movedownb(self, values):
+	def mac_movedownb(self, values : list[str]) -> str:
 		return self.convert("[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-[-<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]<]")
 
 	# Initiates memory system
@@ -547,7 +547,7 @@ class Compiler:
 	# Each binx value stored in memory has a preceding values[0] bits*4 to indicate the size of the occupied chunk for algorithms such as malloc
 	# values[1] determines the number of memory bit/byte cells
 	# The last reserved byte is set to 243 as a memory delimiter for mallocbinx
-	def mac_mem(self, values):
+	def mac_mem(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		y = self.param_to_number(values[1])
 		self.memory_address_size = x
@@ -555,109 +555,109 @@ class Compiler:
 		return self.convert(f"-{1 + self.memory_address_size*2 + 9 + y*4}>3-4>")
 
 	# Looks up to find a cell equal to 255
-	def mac_searchup255(self, values):
+	def mac_searchup255(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(">+[->+]-")
 
 	# Looks down to find a cell equal to 255
-	def mac_searchdown255(self, values):
+	def mac_searchdown255(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("<+[-<+]-")
 	
 	# Sends a boolean up from memory
 	# (no idea how to format this stack descriptor)
-	def mac_sendboolup(self, values):
+	def mac_sendboolup(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("+3<copyb(0)>ifel(-searchup255()++>-searchdown255();-searchup255()+>-searchdown255())>>")
 
 	# Sends a boolean down to memory (if positioning is loaded)
 	# A..
-	def mac_sendbooldown(self, values):
+	def mac_sendbooldown(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("ifel(-searchdown255()+3<[-]+<-4>searchup255()+;-searchdown255()+3<[-]<-4>searchup255()+)")
 
 	# Sends a boolean down to the memory address section
 	# A..
-	def mac_sendbooldownaddress(self, values):
+	def mac_sendbooldownaddress(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("ifel(-searchdown255()++<->searchup255()+;-searchdown255()+<->searchup255()+)")
 
 	# Moves an address down to be loaded into the memory address
 	# AY.. (y is the default memory address size)
-	def mac_writeaddress(self, values):
+	def mac_writeaddress(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"{self.memory_address_size}>-searchdown255()+{self.memory_address_size}>-searchup255()+{self.memory_address_size}repeat(<sendbooldownaddress())")
 
-	def mac_sendboolmemdownaddress(self, values):
+	def mac_sendboolmemdownaddress(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("+3<copyb(0)>ifel(-searchdown255()++>-searchup255();-searchdown255()+>-searchup255())>>")
 
 	# Adds current prefix in memory to address buffer
 	# 0{self.memory_address_size}
-	def mac_addmemprefix(self, values):
+	def mac_addmemprefix(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"searchdown255(){self.memory_address_size + 1}>-{self.memory_address_size}repeat(movetonextmeminternal()sendboolmemdownaddress())searchdown255()+searchup255(){self.memory_address_size}repeat(movetoprevmeminternal())")
 
-	def mac_movememprefix(self, values):
+	def mac_movememprefix(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"searchdown255()>-searchup255(){self.memory_address_size}repeat(movetonextmeminternal()sendboolmemdownaddress())searchdown255()+searchup255(){self.memory_address_size}repeat(movetoprevmeminternal())")
 
-	def mac_whilememregister(self, values):
+	def mac_whilememregister(self, values : list[str]) -> str:
 		return self.convert(f"while(>copybinx({self.memory_address_size};{self.memory_address_size - 1}){self.memory_address_size}>boolbinx({self.memory_address_size});{self.memory_address_size - 1}>+searchdown255()>subbinx({self.memory_address_size})searchup255(){values[0]}searchdown255())")
 
 	# Uses the loaded pointer to find the respective position in memory
 	#0
-	def mac_movetoaddress(self, values):
+	def mac_movetoaddress(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"-searchdown255()>{self.memory_address_size}>{self.memory_address_size}>9>3>-searchdown255()whilememregister(movetonextmeminternal())2searchup255()+")
 
 	# Move the memory pointer right
 	#0
-	def mac_movetonextmeminternal(self, values):
+	def mac_movetonextmeminternal(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("+4>-")
 
 	# Move the memory pointer left
 	#0
-	def mac_movetoprevmeminternal(self, values):
+	def mac_movetoprevmeminternal(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("+4<-")
 
 	# Move the memory pointer right
 	#0
-	def mac_movetonextmem(self, values):
+	def mac_movetonextmem(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("-searchdown255()movetonextmeminternal()searchup255()+")
 
 	# Move the memory pointer left
 	#0
-	def mac_movetoprevmem(self, values):
+	def mac_movetoprevmem(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("-searchdown255()movetoprevmeminternal()searchup255()+")
 	
 	# Ends access to memory
 	#0
-	def mac_endmemaccess(self, values):
+	def mac_endmemaccess(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert("-searchdown255()+searchup255()+")
 
 	# Reads binx from address BY
 	# max(BY, binx)
-	def mac_loadbinx(self, values):
+	def mac_loadbinx(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		x = self.param_to_number(values[0])
 		return self.convert(f"writeaddress()movetoaddress()-searchdown255(){self.memory_address_size + 1}movetonextmeminternal(){x}repeat(sendboolup()movetonextmeminternal())+searchup255()+{x}<")
 	
 	# Saves AX to address BY
 	# AXBY..
-	def mac_savebinx(self, values):
+	def mac_savebinx(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		x = self.param_to_number(values[0])
 		return self.convert(f"{x}>writeaddress()movetoaddress()-searchdown255(){x + self.memory_address_size}movetonextmeminternal()searchup255()+{x}repeat(<sendbooldown())endmemaccess()")
 
 	# Occupies the first memory chunk with sufficient size. Stops the program if no space is found
 	# Y. (ie, empty stack input for the placement of the pointer) (specify in the params the size that is required)
-	def mac_mallocbinx(self, values):
+	def mac_mallocbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		binary1 = bin(self.memory_address_size)[2:]
 		binary1 = '0'*(self.memory_address_size - len(binary1)) + binary1
@@ -688,7 +688,7 @@ while(<copyb(0)>3+ifel(;kill())<copyb(0)>ifel(
 	# Frees the memory chunk
 	# Dynamic
 	# AY..
-	def mac_free(self, values):
+	def mac_free(self, values : list[str]) -> str:
 		if not self.has_memory: raise MemoryError("Memory was never initiated.")
 		return self.convert(f"writeaddress()movetoaddress()-searchdown255()movememprefix(){self.memory_address_size - 1}movetonextmeminternal()4>-2searchdown255()whilememregister(searchup255()movetonextmeminternal()3<[-]3>searchdown255())2searchup255()+searchdown255()2movetonextmeminternal(){self.memory_address_size + 1}repeat(movetoprevmeminternal()3<[-]3>)+searchup255()+")
 	

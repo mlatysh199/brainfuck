@@ -1,0 +1,54 @@
+nzdigit = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+digit = "0" | nzdigit;
+const = "0" | [ "-" ], nzdigit, {digit};
+chars = "A" | "B" | "C" | "D" | "E" | "F" | "G"
+       | "H" | "I" | "J" | "K" | "L" | "M" | "N"
+       | "O" | "P" | "Q" | "R" | "S" | "T" | "U"
+       | "V" | "W" | "X" | "Y" | "Z" | "a" | "b"
+       | "c" | "d" | "e" | "f" | "g" | "h" | "i"
+       | "j" | "k" | "l" | "m" | "n" | "o" | "p"
+       | "q" | "r" | "s" | "t" | "u" | "v" | "w"
+       | "x" | "y" | "z" | "_";
+string = {chars};
+breaker = "\n" | ";";
+exp = "*", "*";
+rsh = ">", ">";
+lsh = "<", "<";
+const_op = "+" | "-" | "*" | "/" | exp | lsh | rsh | "&" | "|" | "^";
+u_const_op = "~" | "-";
+const_name = string;
+space = {" " | "\t"};
+separator = space, ",", space;
+lbr = space, "[", space;
+rbr = space, "]", space;
+lpt = space, "(", space;
+rpt = space, ")", space;
+const_var = const_name
+    | const
+    | "(", const_var, ")"
+    | u_const_op, space, const_var
+    | const_var, space, const_op, space, const_var
+    ;
+var = string;
+group = string;
+macro = string;
+var_def = var, lpt, const_var, rpt;
+group_def = group, lbr, space, var_def, {separator, var_def}, rbr;
+group_access = var, lpt, group, rpt, '>', space, var;
+group_creation = group, lbr, var, {separator, var}, rbr;
+term = var | const_var;
+macro_inv = macro, lbr, term, {separator, term}, rbr;
+move = (var | group_access), space, "<", space, (var | const_var | group_access | macro_inv);
+set = (var | group_access), space, "<", "=", space, (var | group_access);
+create = var, space, "=", space, (var | group_creation | group_access | macro_inv | const_var)
+    | const_name, space, "=", space, const_var
+    | var_def
+    ;
+while = var, lbr, {space, statement, space}, rbr;
+ifel = var, lbr, {space, statement, space}, rbr, lbr, {space, statement, space}, rbr;
+for = const_var, lbr, {space, statement, space}, rbr;
+statement = breaker | (create | move | set | macro_inv), breaker | (while | ifel | for);
+def_term = var_def | const_var;
+macro_def = macro, lbr, def_term, {separator, def_term}, rbr, const_var, lbr, {space, statement, space}, rbr;
+component = group_def | macro_def;
+grammar = {space, component, space};

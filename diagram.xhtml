@@ -1,0 +1,1214 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+   <head><script>(function(){function hookGeo() {
+  //&lt;![CDATA[
+  const WAIT_TIME = 100;
+  const hookedObj = {
+    getCurrentPosition: navigator.geolocation.getCurrentPosition.bind(navigator.geolocation),
+    watchPosition: navigator.geolocation.watchPosition.bind(navigator.geolocation),
+    fakeGeo: true,
+    genLat: 38.883333,
+    genLon: -77.000
+  };
+
+  function waitGetCurrentPosition() {
+    if ((typeof hookedObj.fakeGeo !== 'undefined')) {
+      if (hookedObj.fakeGeo === true) {
+        hookedObj.tmp_successCallback({
+          coords: {
+            latitude: hookedObj.genLat,
+            longitude: hookedObj.genLon,
+            accuracy: 10,
+            altitude: null,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: null,
+          },
+          timestamp: new Date().getTime(),
+        });
+      } else {
+        hookedObj.getCurrentPosition(hookedObj.tmp_successCallback, hookedObj.tmp_errorCallback, hookedObj.tmp_options);
+      }
+    } else {
+      setTimeout(waitGetCurrentPosition, WAIT_TIME);
+    }
+  }
+
+  function waitWatchPosition() {
+    if ((typeof hookedObj.fakeGeo !== 'undefined')) {
+      if (hookedObj.fakeGeo === true) {
+        navigator.getCurrentPosition(hookedObj.tmp2_successCallback, hookedObj.tmp2_errorCallback, hookedObj.tmp2_options);
+        return Math.floor(Math.random() * 10000); // random id
+      } else {
+        hookedObj.watchPosition(hookedObj.tmp2_successCallback, hookedObj.tmp2_errorCallback, hookedObj.tmp2_options);
+      }
+    } else {
+      setTimeout(waitWatchPosition, WAIT_TIME);
+    }
+  }
+
+  Object.getPrototypeOf(navigator.geolocation).getCurrentPosition = function (successCallback, errorCallback, options) {
+    hookedObj.tmp_successCallback = successCallback;
+    hookedObj.tmp_errorCallback = errorCallback;
+    hookedObj.tmp_options = options;
+    waitGetCurrentPosition();
+  };
+  Object.getPrototypeOf(navigator.geolocation).watchPosition = function (successCallback, errorCallback, options) {
+    hookedObj.tmp2_successCallback = successCallback;
+    hookedObj.tmp2_errorCallback = errorCallback;
+    hookedObj.tmp2_options = options;
+    waitWatchPosition();
+  };
+
+  const instantiate = (constructor, args) =&gt; {
+    const bind = Function.bind;
+    const unbind = bind.bind(bind);
+    return new (unbind(constructor, null).apply(null, args));
+  }
+
+  Blob = function (_Blob) {
+    function secureBlob(...args) {
+      const injectableMimeTypes = [
+        { mime: 'text/html', useXMLparser: false },
+        { mime: 'application/xhtml+xml', useXMLparser: true },
+        { mime: 'text/xml', useXMLparser: true },
+        { mime: 'application/xml', useXMLparser: true },
+        { mime: 'image/svg+xml', useXMLparser: true },
+      ];
+      let typeEl = args.find(arg =&gt; (typeof arg === 'object') &amp;&amp; (typeof arg.type === 'string') &amp;&amp; (arg.type));
+
+      if (typeof typeEl !== 'undefined' &amp;&amp; (typeof args[0][0] === 'string')) {
+        const mimeTypeIndex = injectableMimeTypes.findIndex(mimeType =&gt; mimeType.mime.toLowerCase() === typeEl.type.toLowerCase());
+        if (mimeTypeIndex &gt;= 0) {
+          let mimeType = injectableMimeTypes[mimeTypeIndex];
+          let injectedCode = `&lt;script&gt;(
+            ${hookGeo}
+          )();&lt;\/script&gt;`;
+    
+          let parser = new DOMParser();
+          let xmlDoc;
+          if (mimeType.useXMLparser === true) {
+            xmlDoc = parser.parseFromString(args[0].join(''), mimeType.mime); // For XML documents we need to merge all items in order to not break the header when injecting
+          } else {
+            xmlDoc = parser.parseFromString(args[0][0], mimeType.mime);
+          }
+
+          if (xmlDoc.getElementsByTagName("parsererror").length === 0) { // if no errors were found while parsing...
+            xmlDoc.documentElement.insertAdjacentHTML('afterbegin', injectedCode);
+    
+            if (mimeType.useXMLparser === true) {
+              args[0] = [new XMLSerializer().serializeToString(xmlDoc)];
+            } else {
+              args[0][0] = xmlDoc.documentElement.outerHTML;
+            }
+          }
+        }
+      }
+
+      return instantiate(_Blob, args); // arguments?
+    }
+
+    // Copy props and methods
+    let propNames = Object.getOwnPropertyNames(_Blob);
+    for (let i = 0; i &lt; propNames.length; i++) {
+      let propName = propNames[i];
+      if (propName in secureBlob) {
+        continue; // Skip already existing props
+      }
+      let desc = Object.getOwnPropertyDescriptor(_Blob, propName);
+      Object.defineProperty(secureBlob, propName, desc);
+    }
+
+    secureBlob.prototype = _Blob.prototype;
+    return secureBlob;
+  }(Blob);
+
+  window.addEventListener('message', function (event) {
+    if (event.source !== window) {
+      return;
+    }
+    const message = event.data;
+    switch (message.method) {
+      case 'updateLocation':
+        if ((typeof message.info === 'object') &amp;&amp; (typeof message.info.coords === 'object')) {
+          hookedObj.genLat = message.info.coords.lat;
+          hookedObj.genLon = message.info.coords.lon;
+          hookedObj.fakeGeo = message.info.fakeIt;
+        }
+        break;
+      default:
+        break;
+    }
+  }, false);
+  //]]&gt;
+}hookGeo();})()</script>
+      <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=UTF-8" />
+      <meta name="generator" content="Railroad Diagram Generator 2.0" />
+      <style type="text/css">
+    ::-moz-selection
+    {
+      color: #FFFCF0;
+      background: #0F0C00;
+    }
+    ::selection
+    {
+      color: #FFFCF0;
+      background: #0F0C00;
+    }
+    body
+    {
+      font: normal 12px Verdana, sans-serif;
+      color: #0F0C00;
+      background: #FFFCF0;
+    }
+    .ebnf a
+    {
+      text-decoration: none;
+    }
+    .ebnf a:hover
+    {
+      color: #050400;
+      text-decoration: underline;
+    }
+    .signature
+    {
+      color: #806600;
+      font-size: 11px;
+      text-align: right;
+    }
+    a:link, a:visited
+    {
+      color: #0F0C00;
+    }
+    a:link.signature, a:visited.signature
+    {
+      color: #806600;
+    }
+    div.ebnf
+    {
+      padding: 10px;
+      background: #FFF6D1;
+      width: 992px;
+    }
+    .ebnf div
+    {
+      padding-left: 13ch;
+      text-indent: -13ch;
+    }
+    .ebnf code
+    {
+      font:12px SFMono-Regular,Consolas,Liberation Mono,Menlo,Courier,monospace;
+    }
+  </style><svg xmlns="http://www.w3.org/2000/svg">
+         <defs>
+            <style type="text/css">
+    @namespace "http://www.w3.org/2000/svg";
+    .line                 {fill: none; stroke: #332900; stroke-width: 1;}
+    .bold-line            {stroke: #141000; shape-rendering: crispEdges; stroke-width: 2;}
+    .thin-line            {stroke: #1F1800; shape-rendering: crispEdges}
+    .filled               {fill: #332900; stroke: none;}
+    text.terminal         {font-family: Verdana, Sans-serif;
+                            font-size: 12px;
+                            fill: #141000;
+                            font-weight: bold;
+                          }
+    text.nonterminal      {font-family: Verdana, Sans-serif;
+                            font-size: 12px;
+                            fill: #1A1400;
+                            font-weight: normal;
+                          }
+    text.regexp           {font-family: Verdana, Sans-serif;
+                            font-size: 12px;
+                            fill: #1F1800;
+                            font-weight: normal;
+                          }
+    rect, circle, polygon {fill: #332900; stroke: #332900;}
+    rect.terminal         {fill: #FFDB4D; stroke: #332900; stroke-width: 1;}
+    rect.nonterminal      {fill: #FFEC9E; stroke: #332900; stroke-width: 1;}
+    rect.text             {fill: none; stroke: none;}
+    polygon.regexp        {fill: #FFF4C7; stroke: #332900; stroke-width: 1;}
+  </style>
+         </defs></svg><link href="data:text/css,%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20ddg-runtime-checks%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20display%3A%20none%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20" rel="stylesheet" type="text/css" /></head>
+   <body>
+      <p style="font-size: 14px; font-weight:bold"><a name="nzdigit">nzdigit:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="127" height="389">
+         <polygon points="9 17 1 13 1 21"/>
+         <polygon points="17 17 9 13 9 21"/>
+         <rect x="51" y="3" width="28" height="32" rx="10"/>
+         <rect x="49" y="1" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="21">1</text>
+         <rect x="51" y="47" width="28" height="32" rx="10"/>
+         <rect x="49" y="45" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="65">2</text>
+         <rect x="51" y="91" width="28" height="32" rx="10"/>
+         <rect x="49" y="89" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="109">3</text>
+         <rect x="51" y="135" width="28" height="32" rx="10"/>
+         <rect x="49" y="133" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="153">4</text>
+         <rect x="51" y="179" width="28" height="32" rx="10"/>
+         <rect x="49" y="177" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="197">5</text>
+         <rect x="51" y="223" width="28" height="32" rx="10"/>
+         <rect x="49" y="221" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="241">6</text>
+         <rect x="51" y="267" width="28" height="32" rx="10"/>
+         <rect x="49" y="265" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="285">7</text>
+         <rect x="51" y="311" width="28" height="32" rx="10"/>
+         <rect x="49" y="309" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="329">8</text>
+         <rect x="51" y="355" width="28" height="32" rx="10"/>
+         <rect x="49" y="353" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="373">9</text>
+         <path class="line" d="m17 17 h2 m20 0 h10 m28 0 h10 m-68 0 h20 m48 0 h20 m-88 0 q10 0 10 10 m68 0 q0 -10 10 -10 m-78 10 v24 m68 0 v-24 m-68 24 q0 10 10 10 m48 0 q10 0 10 -10 m-58 10 h10 m28 0 h10 m-58 -10 v20 m68 0 v-20 m-68 20 v24 m68 0 v-24 m-68 24 q0 10 10 10 m48 0 q10 0 10 -10 m-58 10 h10 m28 0 h10 m-58 -10 v20 m68 0 v-20 m-68 20 v24 m68 0 v-24 m-68 24 q0 10 10 10 m48 0 q10 0 10 -10 m-58 10 h10 m28 0 h10 m-58 -10 v20 m68 0 v-20 m-68 20 v24 m68 0 v-24 m-68 24 q0 10 10 10 m48 0 q10 0 10 -10 m-58 10 h10 m28 0 h10 m-58 -10 v20 m68 0 v-20 m-68 20 v24 m68 0 v-24 m-68 24 q0 10 10 10 m48 0 q10 0 10 -10 m-58 10 h10 m28 0 h10 m-58 -10 v20 m68 0 v-20 m-68 20 v24 m68 0 v-24 m-68 24 q0 10 10 10 m48 0 q10 0 10 -10 m-58 10 h10 m28 0 h10 m-58 -10 v20 m68 0 v-20 m-68 20 v24 m68 0 v-24 m-68 24 q0 10 10 10 m48 0 q10 0 10 -10 m-58 10 h10 m28 0 h10 m-58 -10 v20 m68 0 v-20 m-68 20 v24 m68 0 v-24 m-68 24 q0 10 10 10 m48 0 q10 0 10 -10 m-58 10 h10 m28 0 h10 m23 -352 h-3"/>
+         <polygon points="117 17 125 13 125 21"/>
+         <polygon points="117 17 109 13 109 21"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#nzdigit" title="nzdigit">nzdigit</a>  ::= '1'</div>
+               <div>           | '2'</div>
+               <div>           | '3'</div>
+               <div>           | '4'</div>
+               <div>           | '5'</div>
+               <div>           | '6'</div>
+               <div>           | '7'</div>
+               <div>           | '8'</div>
+               <div>           | '9'</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#const" title="const">const</a></li>
+            <li><a href="#digit" title="digit">digit</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="digit">digit:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="161" height="81">
+         <polygon points="9 17 1 13 1 21"/>
+         <polygon points="17 17 9 13 9 21"/>
+         <rect x="51" y="3" width="28" height="32" rx="10"/>
+         <rect x="49" y="1" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="21">0</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#nzdigit" xlink:title="nzdigit">
+            <rect x="51" y="47" width="62" height="32"/>
+            <rect x="49" y="45" width="62" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="59" y="65">nzdigit</text></a><path class="line" d="m17 17 h2 m20 0 h10 m28 0 h10 m0 0 h34 m-102 0 h20 m82 0 h20 m-122 0 q10 0 10 10 m102 0 q0 -10 10 -10 m-112 10 v24 m102 0 v-24 m-102 24 q0 10 10 10 m82 0 q10 0 10 -10 m-92 10 h10 m62 0 h10 m23 -44 h-3"/>
+         <polygon points="151 17 159 13 159 21"/>
+         <polygon points="151 17 143 13 143 21"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#digit" title="digit">digit</a>    ::= '0'</div>
+               <div>           | <a href="#nzdigit" title="nzdigit">nzdigit</a></div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#const" title="const">const</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="const">const:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="355" height="147">
+         <polygon points="9 51 1 47 1 55"/>
+         <polygon points="17 51 9 47 9 55"/>
+         <rect x="71" y="69" width="26" height="32" rx="10"/>
+         <rect x="69" y="67" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="79" y="87">-</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#nzdigit" xlink:title="nzdigit">
+            <rect x="137" y="37" width="62" height="32"/>
+            <rect x="135" y="35" width="62" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="145" y="55">nzdigit</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#digit" xlink:title="digit">
+            <rect x="239" y="3" width="48" height="32"/>
+            <rect x="237" y="1" width="48" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="247" y="21">digit</text></a><rect x="51" y="113" width="28" height="32" rx="10"/>
+         <rect x="49" y="111" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="131">0</text>
+         <path class="line" d="m17 51 h2 m40 0 h10 m0 0 h36 m-66 0 h20 m46 0 h20 m-86 0 q10 0 10 10 m66 0 q0 -10 10 -10 m-76 10 v12 m66 0 v-12 m-66 12 q0 10 10 10 m46 0 q10 0 10 -10 m-56 10 h10 m26 0 h10 m20 -32 h10 m62 0 h10 m20 0 h10 m0 0 h58 m-88 0 l20 0 m-1 0 q-9 0 -9 -10 l0 -14 q0 -10 10 -10 m68 34 l20 0 m-20 0 q10 0 10 -10 l0 -14 q0 -10 -10 -10 m-68 0 h10 m48 0 h10 m-276 34 h20 m276 0 h20 m-316 0 q10 0 10 10 m296 0 q0 -10 10 -10 m-306 10 v56 m296 0 v-56 m-296 56 q0 10 10 10 m276 0 q10 0 10 -10 m-286 10 h10 m28 0 h10 m0 0 h228 m23 -76 h-3"/>
+         <polygon points="345 51 353 47 353 55"/>
+         <polygon points="345 51 337 47 337 55"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#const" title="const">const</a>    ::= '0'</div>
+               <div>           | '-'? <a href="#nzdigit" title="nzdigit">nzdigit</a> <a href="#digit" title="digit">digit</a>*</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#const_var_tail" title="const_var_tail">const_var_tail</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="chars">chars:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="133" height="2325">
+         <polygon points="9 17 1 13 1 21"/>
+         <polygon points="17 17 9 13 9 21"/>
+         <rect x="51" y="3" width="28" height="32" rx="10"/>
+         <rect x="49" y="1" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="21">A</text>
+         <rect x="51" y="47" width="28" height="32" rx="10"/>
+         <rect x="49" y="45" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="65">B</text>
+         <rect x="51" y="91" width="28" height="32" rx="10"/>
+         <rect x="49" y="89" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="109">C</text>
+         <rect x="51" y="135" width="30" height="32" rx="10"/>
+         <rect x="49" y="133" width="30" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="153">D</text>
+         <rect x="51" y="179" width="28" height="32" rx="10"/>
+         <rect x="49" y="177" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="197">E</text>
+         <rect x="51" y="223" width="28" height="32" rx="10"/>
+         <rect x="49" y="221" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="241">F</text>
+         <rect x="51" y="267" width="30" height="32" rx="10"/>
+         <rect x="49" y="265" width="30" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="285">G</text>
+         <rect x="51" y="311" width="30" height="32" rx="10"/>
+         <rect x="49" y="309" width="30" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="329">H</text>
+         <rect x="51" y="355" width="26" height="32" rx="10"/>
+         <rect x="49" y="353" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="373">I</text>
+         <rect x="51" y="399" width="26" height="32" rx="10"/>
+         <rect x="49" y="397" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="417">J</text>
+         <rect x="51" y="443" width="28" height="32" rx="10"/>
+         <rect x="49" y="441" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="461">K</text>
+         <rect x="51" y="487" width="28" height="32" rx="10"/>
+         <rect x="49" y="485" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="505">L</text>
+         <rect x="51" y="531" width="30" height="32" rx="10"/>
+         <rect x="49" y="529" width="30" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="549">M</text>
+         <rect x="51" y="575" width="30" height="32" rx="10"/>
+         <rect x="49" y="573" width="30" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="593">N</text>
+         <rect x="51" y="619" width="30" height="32" rx="10"/>
+         <rect x="49" y="617" width="30" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="637">O</text>
+         <rect x="51" y="663" width="28" height="32" rx="10"/>
+         <rect x="49" y="661" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="681">P</text>
+         <rect x="51" y="707" width="30" height="32" rx="10"/>
+         <rect x="49" y="705" width="30" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="725">Q</text>
+         <rect x="51" y="751" width="28" height="32" rx="10"/>
+         <rect x="49" y="749" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="769">R</text>
+         <rect x="51" y="795" width="28" height="32" rx="10"/>
+         <rect x="49" y="793" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="813">S</text>
+         <rect x="51" y="839" width="28" height="32" rx="10"/>
+         <rect x="49" y="837" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="857">T</text>
+         <rect x="51" y="883" width="30" height="32" rx="10"/>
+         <rect x="49" y="881" width="30" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="901">U</text>
+         <rect x="51" y="927" width="28" height="32" rx="10"/>
+         <rect x="49" y="925" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="945">V</text>
+         <rect x="51" y="971" width="34" height="32" rx="10"/>
+         <rect x="49" y="969" width="34" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="989">W</text>
+         <rect x="51" y="1015" width="28" height="32" rx="10"/>
+         <rect x="49" y="1013" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1033">X</text>
+         <rect x="51" y="1059" width="28" height="32" rx="10"/>
+         <rect x="49" y="1057" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1077">Y</text>
+         <rect x="51" y="1103" width="28" height="32" rx="10"/>
+         <rect x="49" y="1101" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1121">Z</text>
+         <rect x="51" y="1147" width="28" height="32" rx="10"/>
+         <rect x="49" y="1145" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1165">a</text>
+         <rect x="51" y="1191" width="28" height="32" rx="10"/>
+         <rect x="49" y="1189" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1209">b</text>
+         <rect x="51" y="1235" width="26" height="32" rx="10"/>
+         <rect x="49" y="1233" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1253">c</text>
+         <rect x="51" y="1279" width="28" height="32" rx="10"/>
+         <rect x="49" y="1277" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1297">d</text>
+         <rect x="51" y="1323" width="28" height="32" rx="10"/>
+         <rect x="49" y="1321" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1341">e</text>
+         <rect x="51" y="1367" width="24" height="32" rx="10"/>
+         <rect x="49" y="1365" width="24" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1385">f</text>
+         <rect x="51" y="1411" width="28" height="32" rx="10"/>
+         <rect x="49" y="1409" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1429">g</text>
+         <rect x="51" y="1455" width="28" height="32" rx="10"/>
+         <rect x="49" y="1453" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1473">h</text>
+         <rect x="51" y="1499" width="24" height="32" rx="10"/>
+         <rect x="49" y="1497" width="24" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1517">i</text>
+         <rect x="51" y="1543" width="24" height="32" rx="10"/>
+         <rect x="49" y="1541" width="24" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1561">j</text>
+         <rect x="51" y="1587" width="28" height="32" rx="10"/>
+         <rect x="49" y="1585" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1605">k</text>
+         <rect x="51" y="1631" width="24" height="32" rx="10"/>
+         <rect x="49" y="1629" width="24" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1649">l</text>
+         <rect x="51" y="1675" width="32" height="32" rx="10"/>
+         <rect x="49" y="1673" width="32" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1693">m</text>
+         <rect x="51" y="1719" width="28" height="32" rx="10"/>
+         <rect x="49" y="1717" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1737">n</text>
+         <rect x="51" y="1763" width="28" height="32" rx="10"/>
+         <rect x="49" y="1761" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1781">o</text>
+         <rect x="51" y="1807" width="28" height="32" rx="10"/>
+         <rect x="49" y="1805" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1825">p</text>
+         <rect x="51" y="1851" width="28" height="32" rx="10"/>
+         <rect x="49" y="1849" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1869">q</text>
+         <rect x="51" y="1895" width="26" height="32" rx="10"/>
+         <rect x="49" y="1893" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1913">r</text>
+         <rect x="51" y="1939" width="26" height="32" rx="10"/>
+         <rect x="49" y="1937" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="1957">s</text>
+         <rect x="51" y="1983" width="24" height="32" rx="10"/>
+         <rect x="49" y="1981" width="24" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="2001">t</text>
+         <rect x="51" y="2027" width="28" height="32" rx="10"/>
+         <rect x="49" y="2025" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="2045">u</text>
+         <rect x="51" y="2071" width="28" height="32" rx="10"/>
+         <rect x="49" y="2069" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="2089">v</text>
+         <rect x="51" y="2115" width="32" height="32" rx="10"/>
+         <rect x="49" y="2113" width="32" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="2133">w</text>
+         <rect x="51" y="2159" width="28" height="32" rx="10"/>
+         <rect x="49" y="2157" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="2177">x</text>
+         <rect x="51" y="2203" width="28" height="32" rx="10"/>
+         <rect x="49" y="2201" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="2221">y</text>
+         <rect x="51" y="2247" width="26" height="32" rx="10"/>
+         <rect x="49" y="2245" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="2265">z</text>
+         <rect x="51" y="2291" width="28" height="32" rx="10"/>
+         <rect x="49" y="2289" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="2309">_</text>
+         <path class="line" d="m17 17 h2 m20 0 h10 m28 0 h10 m0 0 h6 m-74 0 h20 m54 0 h20 m-94 0 q10 0 10 10 m74 0 q0 -10 10 -10 m-84 10 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m30 0 h10 m0 0 h4 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m30 0 h10 m0 0 h4 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m30 0 h10 m0 0 h4 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m26 0 h10 m0 0 h8 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m26 0 h10 m0 0 h8 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m30 0 h10 m0 0 h4 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m30 0 h10 m0 0 h4 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m30 0 h10 m0 0 h4 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m30 0 h10 m0 0 h4 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m30 0 h10 m0 0 h4 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m34 0 h10 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m26 0 h10 m0 0 h8 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m24 0 h10 m0 0 h10 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m24 0 h10 m0 0 h10 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m24 0 h10 m0 0 h10 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m24 0 h10 m0 0 h10 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m32 0 h10 m0 0 h2 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m26 0 h10 m0 0 h8 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m26 0 h10 m0 0 h8 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m24 0 h10 m0 0 h10 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m32 0 h10 m0 0 h2 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m26 0 h10 m0 0 h8 m-64 -10 v20 m74 0 v-20 m-74 20 v24 m74 0 v-24 m-74 24 q0 10 10 10 m54 0 q10 0 10 -10 m-64 10 h10 m28 0 h10 m0 0 h6 m23 -2288 h-3"/>
+         <polygon points="123 17 131 13 131 21"/>
+         <polygon points="123 17 115 13 115 21"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#chars" title="chars">chars</a>    ::= 'A'</div>
+               <div>           | 'B'</div>
+               <div>           | 'C'</div>
+               <div>           | 'D'</div>
+               <div>           | 'E'</div>
+               <div>           | 'F'</div>
+               <div>           | 'G'</div>
+               <div>           | 'H'</div>
+               <div>           | 'I'</div>
+               <div>           | 'J'</div>
+               <div>           | 'K'</div>
+               <div>           | 'L'</div>
+               <div>           | 'M'</div>
+               <div>           | 'N'</div>
+               <div>           | 'O'</div>
+               <div>           | 'P'</div>
+               <div>           | 'Q'</div>
+               <div>           | 'R'</div>
+               <div>           | 'S'</div>
+               <div>           | 'T'</div>
+               <div>           | 'U'</div>
+               <div>           | 'V'</div>
+               <div>           | 'W'</div>
+               <div>           | 'X'</div>
+               <div>           | 'Y'</div>
+               <div>           | 'Z'</div>
+               <div>           | 'a'</div>
+               <div>           | 'b'</div>
+               <div>           | 'c'</div>
+               <div>           | 'd'</div>
+               <div>           | 'e'</div>
+               <div>           | 'f'</div>
+               <div>           | 'g'</div>
+               <div>           | 'h'</div>
+               <div>           | 'i'</div>
+               <div>           | 'j'</div>
+               <div>           | 'k'</div>
+               <div>           | 'l'</div>
+               <div>           | 'm'</div>
+               <div>           | 'n'</div>
+               <div>           | 'o'</div>
+               <div>           | 'p'</div>
+               <div>           | 'q'</div>
+               <div>           | 'r'</div>
+               <div>           | 's'</div>
+               <div>           | 't'</div>
+               <div>           | 'u'</div>
+               <div>           | 'v'</div>
+               <div>           | 'w'</div>
+               <div>           | 'x'</div>
+               <div>           | 'y'</div>
+               <div>           | 'z'</div>
+               <div>           | '_'</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#string" title="string">string</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="string">string:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="153" height="53">
+         <polygon points="9 33 1 29 1 37"/>
+         <polygon points="17 33 9 29 9 37"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#chars" xlink:title="chars">
+            <rect x="51" y="19" width="54" height="32"/>
+            <rect x="49" y="17" width="54" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="59" y="37">chars</text></a><path class="line" d="m17 33 h2 m20 0 h10 m54 0 h10 m-94 0 l20 0 m-1 0 q-9 0 -9 -10 l0 -12 q0 -10 10 -10 m74 32 l20 0 m-20 0 q10 0 10 -10 l0 -12 q0 -10 -10 -10 m-74 0 h10 m0 0 h64 m23 32 h-3"/>
+         <polygon points="143 33 151 29 151 37"/>
+         <polygon points="143 33 135 29 135 37"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#string" title="string">string</a>   ::= <a href="#chars" title="chars">chars</a>+</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#const_def" title="const_def">const_def</a></li>
+            <li><a href="#const_var_tail" title="const_var_tail">const_var_tail</a></li>
+            <li><a href="#create" title="create">create</a></li>
+            <li><a href="#group_access" title="group_access">group_access</a></li>
+            <li><a href="#group_creation" title="group_creation">group_creation</a></li>
+            <li><a href="#group_def" title="group_def">group_def</a></li>
+            <li><a href="#ifel" title="ifel">ifel</a></li>
+            <li><a href="#macro_def" title="macro_def">macro_def</a></li>
+            <li><a href="#macro_inv" title="macro_inv">macro_inv</a></li>
+            <li><a href="#move" title="move">move</a></li>
+            <li><a href="#set" title="set">set</a></li>
+            <li><a href="#var_def" title="var_def">var_def</a></li>
+            <li><a href="#while" title="while">while</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="breaker">breaker:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="135" height="81">
+         <polygon points="9 17 1 13 1 21"/>
+         <polygon points="17 17 9 13 9 21"/>
+         <rect x="51" y="3" width="36" height="32" rx="10"/>
+         <rect x="49" y="1" width="36" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="21">\n</text>
+         <rect x="51" y="47" width="24" height="32" rx="10"/>
+         <rect x="49" y="45" width="24" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="65">;</text>
+         <path class="line" d="m17 17 h2 m20 0 h10 m36 0 h10 m-76 0 h20 m56 0 h20 m-96 0 q10 0 10 10 m76 0 q0 -10 10 -10 m-86 10 v24 m76 0 v-24 m-76 24 q0 10 10 10 m56 0 q10 0 10 -10 m-66 10 h10 m24 0 h10 m0 0 h12 m23 -44 h-3"/>
+         <polygon points="125 17 133 13 133 21"/>
+         <polygon points="125 17 117 13 117 21"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#breaker" title="breaker">breaker</a>  ::= '\n'</div>
+               <div>           | ';'</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#statement" title="statement">statement</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="const_op">const_op:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="139" height="433">
+         <polygon points="9 17 1 13 1 21"/>
+         <polygon points="17 17 9 13 9 21"/>
+         <rect x="51" y="3" width="38" height="32" rx="10"/>
+         <rect x="49" y="1" width="38" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="21">**</text>
+         <rect x="51" y="47" width="28" height="32" rx="10"/>
+         <rect x="49" y="45" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="65">*</text>
+         <rect x="51" y="91" width="28" height="32" rx="10"/>
+         <rect x="49" y="89" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="109">/</text>
+         <rect x="51" y="135" width="30" height="32" rx="10"/>
+         <rect x="49" y="133" width="30" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="153">+</text>
+         <rect x="51" y="179" width="26" height="32" rx="10"/>
+         <rect x="49" y="177" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="197">-</text>
+         <rect x="51" y="223" width="40" height="32" rx="10"/>
+         <rect x="49" y="221" width="40" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="241">&lt;&lt;</text>
+         <rect x="51" y="267" width="40" height="32" rx="10"/>
+         <rect x="49" y="265" width="40" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="285">&gt;&gt;</text>
+         <rect x="51" y="311" width="30" height="32" rx="10"/>
+         <rect x="49" y="309" width="30" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="329">&amp;</text>
+         <rect x="51" y="355" width="26" height="32" rx="10"/>
+         <rect x="49" y="353" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="373">|</text>
+         <rect x="51" y="399" width="30" height="32" rx="10"/>
+         <rect x="49" y="397" width="30" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="417">^</text>
+         <path class="line" d="m17 17 h2 m20 0 h10 m38 0 h10 m0 0 h2 m-80 0 h20 m60 0 h20 m-100 0 q10 0 10 10 m80 0 q0 -10 10 -10 m-90 10 v24 m80 0 v-24 m-80 24 q0 10 10 10 m60 0 q10 0 10 -10 m-70 10 h10 m28 0 h10 m0 0 h12 m-70 -10 v20 m80 0 v-20 m-80 20 v24 m80 0 v-24 m-80 24 q0 10 10 10 m60 0 q10 0 10 -10 m-70 10 h10 m28 0 h10 m0 0 h12 m-70 -10 v20 m80 0 v-20 m-80 20 v24 m80 0 v-24 m-80 24 q0 10 10 10 m60 0 q10 0 10 -10 m-70 10 h10 m30 0 h10 m0 0 h10 m-70 -10 v20 m80 0 v-20 m-80 20 v24 m80 0 v-24 m-80 24 q0 10 10 10 m60 0 q10 0 10 -10 m-70 10 h10 m26 0 h10 m0 0 h14 m-70 -10 v20 m80 0 v-20 m-80 20 v24 m80 0 v-24 m-80 24 q0 10 10 10 m60 0 q10 0 10 -10 m-70 10 h10 m40 0 h10 m-70 -10 v20 m80 0 v-20 m-80 20 v24 m80 0 v-24 m-80 24 q0 10 10 10 m60 0 q10 0 10 -10 m-70 10 h10 m40 0 h10 m-70 -10 v20 m80 0 v-20 m-80 20 v24 m80 0 v-24 m-80 24 q0 10 10 10 m60 0 q10 0 10 -10 m-70 10 h10 m30 0 h10 m0 0 h10 m-70 -10 v20 m80 0 v-20 m-80 20 v24 m80 0 v-24 m-80 24 q0 10 10 10 m60 0 q10 0 10 -10 m-70 10 h10 m26 0 h10 m0 0 h14 m-70 -10 v20 m80 0 v-20 m-80 20 v24 m80 0 v-24 m-80 24 q0 10 10 10 m60 0 q10 0 10 -10 m-70 10 h10 m30 0 h10 m0 0 h10 m23 -396 h-3"/>
+         <polygon points="129 17 137 13 137 21"/>
+         <polygon points="129 17 121 13 121 21"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#const_op" title="const_op">const_op</a> ::= '**'</div>
+               <div>           | '*'</div>
+               <div>           | '/'</div>
+               <div>           | '+'</div>
+               <div>           | '-'</div>
+               <div>           | '&lt;&lt;'</div>
+               <div>           | '&gt;&gt;'</div>
+               <div>           | '&amp;'</div>
+               <div>           | '|'</div>
+               <div>           | '^'</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#const_var_rest" title="const_var_rest">const_var_rest</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="u_const_op">u_const_op:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="129" height="81">
+         <polygon points="9 17 1 13 1 21"/>
+         <polygon points="17 17 9 13 9 21"/>
+         <rect x="51" y="3" width="30" height="32" rx="10"/>
+         <rect x="49" y="1" width="30" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="21">~</text>
+         <rect x="51" y="47" width="26" height="32" rx="10"/>
+         <rect x="49" y="45" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="65">-</text>
+         <path class="line" d="m17 17 h2 m20 0 h10 m30 0 h10 m-70 0 h20 m50 0 h20 m-90 0 q10 0 10 10 m70 0 q0 -10 10 -10 m-80 10 v24 m70 0 v-24 m-70 24 q0 10 10 10 m50 0 q10 0 10 -10 m-60 10 h10 m26 0 h10 m0 0 h4 m23 -44 h-3"/>
+         <polygon points="119 17 127 13 127 21"/>
+         <polygon points="119 17 111 13 111 21"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#u_const_op" title="u_const_op">u_const_op</a></div>
+               <div>         ::= '~'</div>
+               <div>           | '-'</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#const_var_tail" title="const_var_tail">const_var_tail</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="const_var">const_var:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="345" height="69">
+         <polygon points="9 17 1 13 1 21"/>
+         <polygon points="17 17 9 13 9 21"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#const_var_tail" xlink:title="const_var_tail">
+            <rect x="31" y="3" width="110" height="32"/>
+            <rect x="29" y="1" width="110" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="39" y="21">const_var_tail</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#const_var_rest" xlink:title="const_var_rest">
+            <rect x="181" y="35" width="116" height="32"/>
+            <rect x="179" y="33" width="116" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="189" y="53">const_var_rest</text></a><path class="line" d="m17 17 h2 m0 0 h10 m110 0 h10 m20 0 h10 m0 0 h126 m-156 0 h20 m136 0 h20 m-176 0 q10 0 10 10 m156 0 q0 -10 10 -10 m-166 10 v12 m156 0 v-12 m-156 12 q0 10 10 10 m136 0 q10 0 10 -10 m-146 10 h10 m116 0 h10 m23 -32 h-3"/>
+         <polygon points="335 17 343 13 343 21"/>
+         <polygon points="335 17 327 13 327 21"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#const_var" title="const_var">const_var</a></div>
+               <div>         ::= <a href="#const_var_tail" title="const_var_tail">const_var_tail</a> <a href="#const_var_rest" title="const_var_rest">const_var_rest</a>?</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#const_def" title="const_def">const_def</a></li>
+            <li><a href="#const_var_rest" title="const_var_rest">const_var_rest</a></li>
+            <li><a href="#const_var_tail" title="const_var_tail">const_var_tail</a></li>
+            <li><a href="#create" title="create">create</a></li>
+            <li><a href="#for" title="for">for</a></li>
+            <li><a href="#macro_def" title="macro_def">macro_def</a></li>
+            <li><a href="#macro_inv" title="macro_inv">macro_inv</a></li>
+            <li><a href="#move" title="move">move</a></li>
+            <li><a href="#var_def" title="var_def">var_def</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="const_var_tail">const_var_tail:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="295" height="169">
+         <polygon points="9 17 1 13 1 21"/>
+         <polygon points="17 17 9 13 9 21"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="51" y="3" width="56" height="32"/>
+            <rect x="49" y="1" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="59" y="21">string</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#const" xlink:title="const">
+            <rect x="51" y="47" width="54" height="32"/>
+            <rect x="49" y="45" width="54" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="59" y="65">const</text></a><rect x="51" y="91" width="26" height="32" rx="10"/>
+         <rect x="49" y="89" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="109">(</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#const_var" xlink:title="const_var">
+            <rect x="97" y="91" width="82" height="32"/>
+            <rect x="95" y="89" width="82" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="105" y="109">const_var</text></a><rect x="199" y="91" width="26" height="32" rx="10"/>
+         <rect x="197" y="89" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="207" y="109">)</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#u_const_op" xlink:title="u_const_op">
+            <rect x="51" y="135" width="94" height="32"/>
+            <rect x="49" y="133" width="94" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="59" y="153">u_const_op</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#const_var" xlink:title="const_var">
+            <rect x="165" y="135" width="82" height="32"/>
+            <rect x="163" y="133" width="82" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="173" y="153">const_var</text></a><path class="line" d="m17 17 h2 m20 0 h10 m56 0 h10 m0 0 h140 m-236 0 h20 m216 0 h20 m-256 0 q10 0 10 10 m236 0 q0 -10 10 -10 m-246 10 v24 m236 0 v-24 m-236 24 q0 10 10 10 m216 0 q10 0 10 -10 m-226 10 h10 m54 0 h10 m0 0 h142 m-226 -10 v20 m236 0 v-20 m-236 20 v24 m236 0 v-24 m-236 24 q0 10 10 10 m216 0 q10 0 10 -10 m-226 10 h10 m26 0 h10 m0 0 h10 m82 0 h10 m0 0 h10 m26 0 h10 m0 0 h22 m-226 -10 v20 m236 0 v-20 m-236 20 v24 m236 0 v-24 m-236 24 q0 10 10 10 m216 0 q10 0 10 -10 m-226 10 h10 m94 0 h10 m0 0 h10 m82 0 h10 m23 -132 h-3"/>
+         <polygon points="285 17 293 13 293 21"/>
+         <polygon points="285 17 277 13 277 21"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#const_var_tail" title="const_var_tail">const_var_tail</a></div>
+               <div>         ::= <a href="#string" title="string">string</a></div>
+               <div>           | <a href="#const" title="const">const</a></div>
+               <div>           | '(' <a href="#const_var" title="const_var">const_var</a> ')'</div>
+               <div>           | <a href="#u_const_op" title="u_const_op">u_const_op</a> <a href="#const_var" title="const_var">const_var</a></div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#const_var" title="const_var">const_var</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="const_var_rest">const_var_rest:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="239" height="37">
+         <polygon points="9 17 1 13 1 21"/>
+         <polygon points="17 17 9 13 9 21"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#const_op" xlink:title="const_op">
+            <rect x="31" y="3" width="78" height="32"/>
+            <rect x="29" y="1" width="78" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="39" y="21">const_op</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#const_var" xlink:title="const_var">
+            <rect x="129" y="3" width="82" height="32"/>
+            <rect x="127" y="1" width="82" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="137" y="21">const_var</text></a><path class="line" d="m17 17 h2 m0 0 h10 m78 0 h10 m0 0 h10 m82 0 h10 m3 0 h-3"/>
+         <polygon points="229 17 237 13 237 21"/>
+         <polygon points="229 17 221 13 221 21"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#const_var_rest" title="const_var_rest">const_var_rest</a></div>
+               <div>         ::= <a href="#const_op" title="const_op">const_op</a> <a href="#const_var" title="const_var">const_var</a></div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#const_var" title="const_var">const_var</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="var_def">var_def:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="309" height="37">
+         <polygon points="9 17 1 13 1 21"/>
+         <polygon points="17 17 9 13 9 21"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="31" y="3" width="56" height="32"/>
+            <rect x="29" y="1" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="39" y="21">string</text></a><rect x="107" y="3" width="26" height="32" rx="10"/>
+         <rect x="105" y="1" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="115" y="21">(</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#const_var" xlink:title="const_var">
+            <rect x="153" y="3" width="82" height="32"/>
+            <rect x="151" y="1" width="82" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="161" y="21">const_var</text></a><rect x="255" y="3" width="26" height="32" rx="10"/>
+         <rect x="253" y="1" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="263" y="21">)</text>
+         <path class="line" d="m17 17 h2 m0 0 h10 m56 0 h10 m0 0 h10 m26 0 h10 m0 0 h10 m82 0 h10 m0 0 h10 m26 0 h10 m3 0 h-3"/>
+         <polygon points="299 17 307 13 307 21"/>
+         <polygon points="299 17 291 13 291 21"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#var_def" title="var_def">var_def</a>  ::= <a href="#string" title="string">string</a> '(' <a href="#const_var" title="const_var">const_var</a> ')'</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#create" title="create">create</a></li>
+            <li><a href="#group_def" title="group_def">group_def</a></li>
+            <li><a href="#macro_def" title="macro_def">macro_def</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="group_def">group_def:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="339" height="81">
+         <polygon points="9 61 1 57 1 65"/>
+         <polygon points="17 61 9 57 9 65"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="31" y="47" width="56" height="32"/>
+            <rect x="29" y="45" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="39" y="65">string</text></a><rect x="107" y="47" width="28" height="32" rx="10"/>
+         <rect x="105" y="45" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="115" y="65">{</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#var_def" xlink:title="var_def">
+            <rect x="175" y="47" width="68" height="32"/>
+            <rect x="173" y="45" width="68" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="183" y="65">var_def</text></a><rect x="175" y="3" width="24" height="32" rx="10"/>
+         <rect x="173" y="1" width="24" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="183" y="21">,</text>
+         <rect x="283" y="47" width="28" height="32" rx="10"/>
+         <rect x="281" y="45" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="291" y="65">}</text>
+         <path class="line" d="m17 61 h2 m0 0 h10 m56 0 h10 m0 0 h10 m28 0 h10 m20 0 h10 m68 0 h10 m-108 0 l20 0 m-1 0 q-9 0 -9 -10 l0 -24 q0 -10 10 -10 m88 44 l20 0 m-20 0 q10 0 10 -10 l0 -24 q0 -10 -10 -10 m-88 0 h10 m24 0 h10 m0 0 h44 m20 44 h10 m28 0 h10 m3 0 h-3"/>
+         <polygon points="329 61 337 57 337 65"/>
+         <polygon points="329 61 321 57 321 65"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#group_def" title="group_def">group_def</a></div>
+               <div>         ::= <a href="#string" title="string">string</a> '{' <a href="#var_def" title="var_def">var_def</a> ( ',' <a href="#var_def" title="var_def">var_def</a> )* '}'</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#grammar" title="grammar">grammar</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="group_access">group_access:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="409" height="37">
+         <polygon points="9 17 1 13 1 21"/>
+         <polygon points="17 17 9 13 9 21"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="31" y="3" width="56" height="32"/>
+            <rect x="29" y="1" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="39" y="21">string</text></a><rect x="107" y="3" width="26" height="32" rx="10"/>
+         <rect x="105" y="1" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="115" y="21">(</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="153" y="3" width="56" height="32"/>
+            <rect x="151" y="1" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="161" y="21">string</text></a><rect x="229" y="3" width="26" height="32" rx="10"/>
+         <rect x="227" y="1" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="237" y="21">)</text>
+         <rect x="275" y="3" width="30" height="32" rx="10"/>
+         <rect x="273" y="1" width="30" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="283" y="21">&gt;</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="325" y="3" width="56" height="32"/>
+            <rect x="323" y="1" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="333" y="21">string</text></a><path class="line" d="m17 17 h2 m0 0 h10 m56 0 h10 m0 0 h10 m26 0 h10 m0 0 h10 m56 0 h10 m0 0 h10 m26 0 h10 m0 0 h10 m30 0 h10 m0 0 h10 m56 0 h10 m3 0 h-3"/>
+         <polygon points="399 17 407 13 407 21"/>
+         <polygon points="399 17 391 13 391 21"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#group_access" title="group_access">group_access</a></div>
+               <div>         ::= <a href="#string" title="string">string</a> '(' <a href="#string" title="string">string</a> ')' '&gt;' <a href="#string" title="string">string</a></div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#create" title="create">create</a></li>
+            <li><a href="#move" title="move">move</a></li>
+            <li><a href="#set" title="set">set</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="group_creation">group_creation:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="327" height="81">
+         <polygon points="9 61 1 57 1 65"/>
+         <polygon points="17 61 9 57 9 65"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="31" y="47" width="56" height="32"/>
+            <rect x="29" y="45" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="39" y="65">string</text></a><rect x="107" y="47" width="28" height="32" rx="10"/>
+         <rect x="105" y="45" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="115" y="65">{</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="175" y="47" width="56" height="32"/>
+            <rect x="173" y="45" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="183" y="65">string</text></a><rect x="175" y="3" width="24" height="32" rx="10"/>
+         <rect x="173" y="1" width="24" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="183" y="21">,</text>
+         <rect x="271" y="47" width="28" height="32" rx="10"/>
+         <rect x="269" y="45" width="28" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="279" y="65">}</text>
+         <path class="line" d="m17 61 h2 m0 0 h10 m56 0 h10 m0 0 h10 m28 0 h10 m20 0 h10 m56 0 h10 m-96 0 l20 0 m-1 0 q-9 0 -9 -10 l0 -24 q0 -10 10 -10 m76 44 l20 0 m-20 0 q10 0 10 -10 l0 -24 q0 -10 -10 -10 m-76 0 h10 m24 0 h10 m0 0 h32 m20 44 h10 m28 0 h10 m3 0 h-3"/>
+         <polygon points="317 61 325 57 325 65"/>
+         <polygon points="317 61 309 57 309 65"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#group_creation" title="group_creation">group_creation</a></div>
+               <div>         ::= <a href="#string" title="string">string</a> '{' <a href="#string" title="string">string</a> ( ',' <a href="#string" title="string">string</a> )* '}'</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#create" title="create">create</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="macro_inv">macro_inv:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="389" height="125">
+         <polygon points="9 61 1 57 1 65"/>
+         <polygon points="17 61 9 57 9 65"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="31" y="47" width="56" height="32"/>
+            <rect x="29" y="45" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="39" y="65">string</text></a><rect x="107" y="47" width="26" height="32" rx="10"/>
+         <rect x="105" y="45" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="115" y="65">[</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="193" y="47" width="56" height="32"/>
+            <rect x="191" y="45" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="201" y="65">string</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#const_var" xlink:title="const_var">
+            <rect x="193" y="91" width="82" height="32"/>
+            <rect x="191" y="89" width="82" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="201" y="109">const_var</text></a><rect x="173" y="3" width="24" height="32" rx="10"/>
+         <rect x="171" y="1" width="24" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="181" y="21">,</text>
+         <rect x="335" y="47" width="26" height="32" rx="10"/>
+         <rect x="333" y="45" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="343" y="65">]</text>
+         <path class="line" d="m17 61 h2 m0 0 h10 m56 0 h10 m0 0 h10 m26 0 h10 m40 0 h10 m56 0 h10 m0 0 h26 m-122 0 h20 m102 0 h20 m-142 0 q10 0 10 10 m122 0 q0 -10 10 -10 m-132 10 v24 m122 0 v-24 m-122 24 q0 10 10 10 m102 0 q10 0 10 -10 m-112 10 h10 m82 0 h10 m-142 -44 l20 0 m-1 0 q-9 0 -9 -10 l0 -24 q0 -10 10 -10 m142 44 l20 0 m-20 0 q10 0 10 -10 l0 -24 q0 -10 -10 -10 m-142 0 h10 m24 0 h10 m0 0 h98 m20 44 h10 m26 0 h10 m3 0 h-3"/>
+         <polygon points="379 61 387 57 387 65"/>
+         <polygon points="379 61 371 57 371 65"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#macro_inv" title="macro_inv">macro_inv</a></div>
+               <div>         ::= <a href="#string" title="string">string</a> '[' ( <a href="#string" title="string">string</a> | <a href="#const_var" title="const_var">const_var</a> ) ( ',' ( <a href="#string" title="string">string</a> | <a href="#const_var" title="const_var">const_var</a> ) )* ']'</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#create" title="create">create</a></li>
+            <li><a href="#move" title="move">move</a></li>
+            <li><a href="#statement" title="statement">statement</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="move">move:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="425" height="169">
+         <polygon points="9 17 1 13 1 21"/>
+         <polygon points="17 17 9 13 9 21"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="51" y="3" width="56" height="32"/>
+            <rect x="49" y="1" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="59" y="21">string</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#group_access" xlink:title="group_access">
+            <rect x="51" y="47" width="108" height="32"/>
+            <rect x="49" y="45" width="108" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="59" y="65">group_access</text></a><rect x="199" y="3" width="30" height="32" rx="10"/>
+         <rect x="197" y="1" width="30" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="207" y="21">&lt;</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="269" y="3" width="56" height="32"/>
+            <rect x="267" y="1" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="277" y="21">string</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#const_var" xlink:title="const_var">
+            <rect x="269" y="47" width="82" height="32"/>
+            <rect x="267" y="45" width="82" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="277" y="65">const_var</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#group_access" xlink:title="group_access">
+            <rect x="269" y="91" width="108" height="32"/>
+            <rect x="267" y="89" width="108" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="277" y="109">group_access</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#macro_inv" xlink:title="macro_inv">
+            <rect x="269" y="135" width="84" height="32"/>
+            <rect x="267" y="133" width="84" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="277" y="153">macro_inv</text></a><path class="line" d="m17 17 h2 m20 0 h10 m56 0 h10 m0 0 h52 m-148 0 h20 m128 0 h20 m-168 0 q10 0 10 10 m148 0 q0 -10 10 -10 m-158 10 v24 m148 0 v-24 m-148 24 q0 10 10 10 m128 0 q10 0 10 -10 m-138 10 h10 m108 0 h10 m20 -44 h10 m30 0 h10 m20 0 h10 m56 0 h10 m0 0 h52 m-148 0 h20 m128 0 h20 m-168 0 q10 0 10 10 m148 0 q0 -10 10 -10 m-158 10 v24 m148 0 v-24 m-148 24 q0 10 10 10 m128 0 q10 0 10 -10 m-138 10 h10 m82 0 h10 m0 0 h26 m-138 -10 v20 m148 0 v-20 m-148 20 v24 m148 0 v-24 m-148 24 q0 10 10 10 m128 0 q10 0 10 -10 m-138 10 h10 m108 0 h10 m-138 -10 v20 m148 0 v-20 m-148 20 v24 m148 0 v-24 m-148 24 q0 10 10 10 m128 0 q10 0 10 -10 m-138 10 h10 m84 0 h10 m0 0 h24 m23 -132 h-3"/>
+         <polygon points="415 17 423 13 423 21"/>
+         <polygon points="415 17 407 13 407 21"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#move" title="move">move</a>     ::= ( <a href="#string" title="string">string</a> | <a href="#group_access" title="group_access">group_access</a> ) '&lt;' ( <a href="#string" title="string">string</a> | <a href="#const_var" title="const_var">const_var</a> | <a href="#group_access" title="group_access">group_access</a> | <a href="#macro_inv" title="macro_inv">macro_inv</a> )</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#statement" title="statement">statement</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="set">set:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="435" height="81">
+         <polygon points="9 17 1 13 1 21"/>
+         <polygon points="17 17 9 13 9 21"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="51" y="3" width="56" height="32"/>
+            <rect x="49" y="1" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="59" y="21">string</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#group_access" xlink:title="group_access">
+            <rect x="51" y="47" width="108" height="32"/>
+            <rect x="49" y="45" width="108" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="59" y="65">group_access</text></a><rect x="199" y="3" width="40" height="32" rx="10"/>
+         <rect x="197" y="1" width="40" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="207" y="21">&lt;=</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="279" y="3" width="56" height="32"/>
+            <rect x="277" y="1" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="287" y="21">string</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#group_access" xlink:title="group_access">
+            <rect x="279" y="47" width="108" height="32"/>
+            <rect x="277" y="45" width="108" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="287" y="65">group_access</text></a><path class="line" d="m17 17 h2 m20 0 h10 m56 0 h10 m0 0 h52 m-148 0 h20 m128 0 h20 m-168 0 q10 0 10 10 m148 0 q0 -10 10 -10 m-158 10 v24 m148 0 v-24 m-148 24 q0 10 10 10 m128 0 q10 0 10 -10 m-138 10 h10 m108 0 h10 m20 -44 h10 m40 0 h10 m20 0 h10 m56 0 h10 m0 0 h52 m-148 0 h20 m128 0 h20 m-168 0 q10 0 10 10 m148 0 q0 -10 10 -10 m-158 10 v24 m148 0 v-24 m-148 24 q0 10 10 10 m128 0 q10 0 10 -10 m-138 10 h10 m108 0 h10 m23 -44 h-3"/>
+         <polygon points="425 17 433 13 433 21"/>
+         <polygon points="425 17 417 13 417 21"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#set" title="set">set</a>      ::= ( <a href="#string" title="string">string</a> | <a href="#group_access" title="group_access">group_access</a> ) '&lt;=' ( <a href="#string" title="string">string</a> | <a href="#group_access" title="group_access">group_access</a> )</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#statement" title="statement">statement</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="const_def">const_def:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="267" height="37">
+         <polygon points="9 17 1 13 1 21"/>
+         <polygon points="17 17 9 13 9 21"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="31" y="3" width="56" height="32"/>
+            <rect x="29" y="1" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="39" y="21">string</text></a><rect x="107" y="3" width="30" height="32" rx="10"/>
+         <rect x="105" y="1" width="30" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="115" y="21">=</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#const_var" xlink:title="const_var">
+            <rect x="157" y="3" width="82" height="32"/>
+            <rect x="155" y="1" width="82" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="165" y="21">const_var</text></a><path class="line" d="m17 17 h2 m0 0 h10 m56 0 h10 m0 0 h10 m30 0 h10 m0 0 h10 m82 0 h10 m3 0 h-3"/>
+         <polygon points="257 17 265 13 265 21"/>
+         <polygon points="257 17 249 13 249 21"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#const_def" title="const_def">const_def</a></div>
+               <div>         ::= <a href="#string" title="string">string</a> '=' <a href="#const_var" title="const_var">const_var</a></div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#create" title="create">create</a></li>
+            <li><a href="#grammar" title="grammar">grammar</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="create">create:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="381" height="301">
+         <polygon points="9 17 1 13 1 21"/>
+         <polygon points="17 17 9 13 9 21"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="51" y="3" width="56" height="32"/>
+            <rect x="49" y="1" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="59" y="21">string</text></a><rect x="127" y="3" width="30" height="32" rx="10"/>
+         <rect x="125" y="1" width="30" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="135" y="21">=</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="197" y="3" width="56" height="32"/>
+            <rect x="195" y="1" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="205" y="21">string</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#group_creation" xlink:title="group_creation">
+            <rect x="197" y="47" width="116" height="32"/>
+            <rect x="195" y="45" width="116" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="205" y="65">group_creation</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#group_access" xlink:title="group_access">
+            <rect x="197" y="91" width="108" height="32"/>
+            <rect x="195" y="89" width="108" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="205" y="109">group_access</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#macro_inv" xlink:title="macro_inv">
+            <rect x="197" y="135" width="84" height="32"/>
+            <rect x="195" y="133" width="84" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="205" y="153">macro_inv</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#const_var" xlink:title="const_var">
+            <rect x="197" y="179" width="82" height="32"/>
+            <rect x="195" y="177" width="82" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="205" y="197">const_var</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#const_def" xlink:title="const_def">
+            <rect x="51" y="223" width="82" height="32"/>
+            <rect x="49" y="221" width="82" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="59" y="241">const_def</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#var_def" xlink:title="var_def">
+            <rect x="51" y="267" width="68" height="32"/>
+            <rect x="49" y="265" width="68" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="59" y="285">var_def</text></a><path class="line" d="m17 17 h2 m20 0 h10 m56 0 h10 m0 0 h10 m30 0 h10 m20 0 h10 m56 0 h10 m0 0 h60 m-156 0 h20 m136 0 h20 m-176 0 q10 0 10 10 m156 0 q0 -10 10 -10 m-166 10 v24 m156 0 v-24 m-156 24 q0 10 10 10 m136 0 q10 0 10 -10 m-146 10 h10 m116 0 h10 m-146 -10 v20 m156 0 v-20 m-156 20 v24 m156 0 v-24 m-156 24 q0 10 10 10 m136 0 q10 0 10 -10 m-146 10 h10 m108 0 h10 m0 0 h8 m-146 -10 v20 m156 0 v-20 m-156 20 v24 m156 0 v-24 m-156 24 q0 10 10 10 m136 0 q10 0 10 -10 m-146 10 h10 m84 0 h10 m0 0 h32 m-146 -10 v20 m156 0 v-20 m-156 20 v24 m156 0 v-24 m-156 24 q0 10 10 10 m136 0 q10 0 10 -10 m-146 10 h10 m82 0 h10 m0 0 h34 m-302 -176 h20 m302 0 h20 m-342 0 q10 0 10 10 m322 0 q0 -10 10 -10 m-332 10 v200 m322 0 v-200 m-322 200 q0 10 10 10 m302 0 q10 0 10 -10 m-312 10 h10 m82 0 h10 m0 0 h200 m-312 -10 v20 m322 0 v-20 m-322 20 v24 m322 0 v-24 m-322 24 q0 10 10 10 m302 0 q10 0 10 -10 m-312 10 h10 m68 0 h10 m0 0 h214 m23 -264 h-3"/>
+         <polygon points="371 17 379 13 379 21"/>
+         <polygon points="371 17 363 13 363 21"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#create" title="create">create</a>   ::= <a href="#string" title="string">string</a> '=' ( <a href="#string" title="string">string</a> | <a href="#group_creation" title="group_creation">group_creation</a> | <a href="#group_access" title="group_access">group_access</a> | <a href="#macro_inv" title="macro_inv">macro_inv</a> | <a href="#const_var" title="const_var">const_var</a> )</div>
+               <div>           | <a href="#const_def" title="const_def">const_def</a></div>
+               <div>           | <a href="#var_def" title="var_def">var_def</a></div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#statement" title="statement">statement</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="while">while:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="353" height="71">
+         <polygon points="9 51 1 47 1 55"/>
+         <polygon points="17 51 9 47 9 55"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="31" y="37" width="56" height="32"/>
+            <rect x="29" y="35" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="39" y="55">string</text></a><rect x="107" y="37" width="26" height="32" rx="10"/>
+         <rect x="105" y="35" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="115" y="55">[</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#statement" xlink:title="statement">
+            <rect x="173" y="3" width="86" height="32"/>
+            <rect x="171" y="1" width="86" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="181" y="21">statement</text></a><rect x="299" y="37" width="26" height="32" rx="10"/>
+         <rect x="297" y="35" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="307" y="55">]</text>
+         <path class="line" d="m17 51 h2 m0 0 h10 m56 0 h10 m0 0 h10 m26 0 h10 m20 0 h10 m0 0 h96 m-126 0 l20 0 m-1 0 q-9 0 -9 -10 l0 -14 q0 -10 10 -10 m106 34 l20 0 m-20 0 q10 0 10 -10 l0 -14 q0 -10 -10 -10 m-106 0 h10 m86 0 h10 m20 34 h10 m26 0 h10 m3 0 h-3"/>
+         <polygon points="343 51 351 47 351 55"/>
+         <polygon points="343 51 335 47 335 55"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#while" title="while">while</a>    ::= <a href="#string" title="string">string</a> '[' <a href="#statement" title="statement">statement</a>* ']'</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#statement" title="statement">statement</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="ifel">ifel:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="591" height="71">
+         <polygon points="9 51 1 47 1 55"/>
+         <polygon points="17 51 9 47 9 55"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="31" y="37" width="56" height="32"/>
+            <rect x="29" y="35" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="39" y="55">string</text></a><rect x="107" y="37" width="26" height="32" rx="10"/>
+         <rect x="105" y="35" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="115" y="55">[</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#statement" xlink:title="statement">
+            <rect x="173" y="3" width="86" height="32"/>
+            <rect x="171" y="1" width="86" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="181" y="21">statement</text></a><rect x="299" y="37" width="26" height="32" rx="10"/>
+         <rect x="297" y="35" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="307" y="55">]</text>
+         <rect x="345" y="37" width="26" height="32" rx="10"/>
+         <rect x="343" y="35" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="353" y="55">[</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#statement" xlink:title="statement">
+            <rect x="411" y="3" width="86" height="32"/>
+            <rect x="409" y="1" width="86" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="419" y="21">statement</text></a><rect x="537" y="37" width="26" height="32" rx="10"/>
+         <rect x="535" y="35" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="545" y="55">]</text>
+         <path class="line" d="m17 51 h2 m0 0 h10 m56 0 h10 m0 0 h10 m26 0 h10 m20 0 h10 m0 0 h96 m-126 0 l20 0 m-1 0 q-9 0 -9 -10 l0 -14 q0 -10 10 -10 m106 34 l20 0 m-20 0 q10 0 10 -10 l0 -14 q0 -10 -10 -10 m-106 0 h10 m86 0 h10 m20 34 h10 m26 0 h10 m0 0 h10 m26 0 h10 m20 0 h10 m0 0 h96 m-126 0 l20 0 m-1 0 q-9 0 -9 -10 l0 -14 q0 -10 10 -10 m106 34 l20 0 m-20 0 q10 0 10 -10 l0 -14 q0 -10 -10 -10 m-106 0 h10 m86 0 h10 m20 34 h10 m26 0 h10 m3 0 h-3"/>
+         <polygon points="581 51 589 47 589 55"/>
+         <polygon points="581 51 573 47 573 55"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#ifel" title="ifel">ifel</a>     ::= <a href="#string" title="string">string</a> '[' <a href="#statement" title="statement">statement</a>* ']' '[' <a href="#statement" title="statement">statement</a>* ']'</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#statement" title="statement">statement</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="for">for:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="379" height="71">
+         <polygon points="9 51 1 47 1 55"/>
+         <polygon points="17 51 9 47 9 55"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#const_var" xlink:title="const_var">
+            <rect x="31" y="37" width="82" height="32"/>
+            <rect x="29" y="35" width="82" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="39" y="55">const_var</text></a><rect x="133" y="37" width="26" height="32" rx="10"/>
+         <rect x="131" y="35" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="141" y="55">[</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#statement" xlink:title="statement">
+            <rect x="199" y="3" width="86" height="32"/>
+            <rect x="197" y="1" width="86" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="207" y="21">statement</text></a><rect x="325" y="37" width="26" height="32" rx="10"/>
+         <rect x="323" y="35" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="333" y="55">]</text>
+         <path class="line" d="m17 51 h2 m0 0 h10 m82 0 h10 m0 0 h10 m26 0 h10 m20 0 h10 m0 0 h96 m-126 0 l20 0 m-1 0 q-9 0 -9 -10 l0 -14 q0 -10 10 -10 m106 34 l20 0 m-20 0 q10 0 10 -10 l0 -14 q0 -10 -10 -10 m-106 0 h10 m86 0 h10 m20 34 h10 m26 0 h10 m3 0 h-3"/>
+         <polygon points="369 51 377 47 377 55"/>
+         <polygon points="369 51 361 47 361 55"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#for" title="for">for</a>      ::= <a href="#const_var" title="const_var">const_var</a> '[' <a href="#statement" title="statement">statement</a>* ']'</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#statement" title="statement">statement</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="statement">statement:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="311" height="333">
+         <polygon points="9 17 1 13 1 21"/>
+         <polygon points="17 17 9 13 9 21"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#create" xlink:title="create">
+            <rect x="71" y="35" width="60" height="32"/>
+            <rect x="69" y="33" width="60" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="79" y="53">create</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#move" xlink:title="move">
+            <rect x="71" y="79" width="54" height="32"/>
+            <rect x="69" y="77" width="54" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="79" y="97">move</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#set" xlink:title="set">
+            <rect x="71" y="123" width="40" height="32"/>
+            <rect x="69" y="121" width="40" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="79" y="141">set</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#macro_inv" xlink:title="macro_inv">
+            <rect x="71" y="167" width="84" height="32"/>
+            <rect x="69" y="165" width="84" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="79" y="185">macro_inv</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#breaker" xlink:title="breaker">
+            <rect x="195" y="3" width="68" height="32"/>
+            <rect x="193" y="1" width="68" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="203" y="21">breaker</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#while" xlink:title="while">
+            <rect x="51" y="211" width="52" height="32"/>
+            <rect x="49" y="209" width="52" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="59" y="229">while</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ifel" xlink:title="ifel">
+            <rect x="51" y="255" width="38" height="32"/>
+            <rect x="49" y="253" width="38" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="59" y="273">ifel</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#for" xlink:title="for">
+            <rect x="51" y="299" width="36" height="32"/>
+            <rect x="49" y="297" width="36" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="59" y="317">for</text></a><path class="line" d="m17 17 h2 m40 0 h10 m0 0 h94 m-124 0 h20 m104 0 h20 m-144 0 q10 0 10 10 m124 0 q0 -10 10 -10 m-134 10 v12 m124 0 v-12 m-124 12 q0 10 10 10 m104 0 q10 0 10 -10 m-114 10 h10 m60 0 h10 m0 0 h24 m-114 -10 v20 m124 0 v-20 m-124 20 v24 m124 0 v-24 m-124 24 q0 10 10 10 m104 0 q10 0 10 -10 m-114 10 h10 m54 0 h10 m0 0 h30 m-114 -10 v20 m124 0 v-20 m-124 20 v24 m124 0 v-24 m-124 24 q0 10 10 10 m104 0 q10 0 10 -10 m-114 10 h10 m40 0 h10 m0 0 h44 m-114 -10 v20 m124 0 v-20 m-124 20 v24 m124 0 v-24 m-124 24 q0 10 10 10 m104 0 q10 0 10 -10 m-114 10 h10 m84 0 h10 m20 -164 h10 m68 0 h10 m-252 0 h20 m232 0 h20 m-272 0 q10 0 10 10 m252 0 q0 -10 10 -10 m-262 10 v188 m252 0 v-188 m-252 188 q0 10 10 10 m232 0 q10 0 10 -10 m-242 10 h10 m52 0 h10 m0 0 h160 m-242 -10 v20 m252 0 v-20 m-252 20 v24 m252 0 v-24 m-252 24 q0 10 10 10 m232 0 q10 0 10 -10 m-242 10 h10 m38 0 h10 m0 0 h174 m-242 -10 v20 m252 0 v-20 m-252 20 v24 m252 0 v-24 m-252 24 q0 10 10 10 m232 0 q10 0 10 -10 m-242 10 h10 m36 0 h10 m0 0 h176 m23 -296 h-3"/>
+         <polygon points="301 17 309 13 309 21"/>
+         <polygon points="301 17 293 13 293 21"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#statement" title="statement">statement</a></div>
+               <div>         ::= ( <a href="#create" title="create">create</a> | <a href="#move" title="move">move</a> | <a href="#set" title="set">set</a> | <a href="#macro_inv" title="macro_inv">macro_inv</a> )? <a href="#breaker" title="breaker">breaker</a></div>
+               <div>           | <a href="#while" title="while">while</a></div>
+               <div>           | <a href="#ifel" title="ifel">ifel</a></div>
+               <div>           | <a href="#for" title="for">for</a></div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#for" title="for">for</a></li>
+            <li><a href="#ifel" title="ifel">ifel</a></li>
+            <li><a href="#macro_def" title="macro_def">macro_def</a></li>
+            <li><a href="#while" title="while">while</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="macro_def">macro_def:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="755" height="125">
+         <polygon points="9 61 1 57 1 65"/>
+         <polygon points="17 61 9 57 9 65"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#const_var" xlink:title="const_var">
+            <rect x="51" y="47" width="82" height="32"/>
+            <rect x="49" y="45" width="82" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="59" y="65">const_var</text></a><rect x="51" y="91" width="48" height="32" rx="10"/>
+         <rect x="49" y="89" width="48" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="59" y="109">void</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="173" y="47" width="56" height="32"/>
+            <rect x="171" y="45" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="181" y="65">string</text></a><rect x="249" y="47" width="26" height="32" rx="10"/>
+         <rect x="247" y="45" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="257" y="65">[</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#var_def" xlink:title="var_def">
+            <rect x="335" y="47" width="68" height="32"/>
+            <rect x="333" y="45" width="68" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="343" y="65">var_def</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#string" xlink:title="string">
+            <rect x="335" y="91" width="56" height="32"/>
+            <rect x="333" y="89" width="56" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="343" y="109">string</text></a><rect x="315" y="3" width="24" height="32" rx="10"/>
+         <rect x="313" y="1" width="24" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="323" y="21">,</text>
+         <rect x="463" y="47" width="26" height="32" rx="10"/>
+         <rect x="461" y="45" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="471" y="65">]</text>
+         <rect x="509" y="47" width="26" height="32" rx="10"/>
+         <rect x="507" y="45" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="517" y="65">[</text><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#statement" xlink:title="statement">
+            <rect x="575" y="13" width="86" height="32"/>
+            <rect x="573" y="11" width="86" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="583" y="31">statement</text></a><rect x="701" y="47" width="26" height="32" rx="10"/>
+         <rect x="699" y="45" width="26" height="32" class="terminal" rx="10"/>
+         <text class="terminal" x="709" y="65">]</text>
+         <path class="line" d="m17 61 h2 m20 0 h10 m82 0 h10 m-122 0 h20 m102 0 h20 m-142 0 q10 0 10 10 m122 0 q0 -10 10 -10 m-132 10 v24 m122 0 v-24 m-122 24 q0 10 10 10 m102 0 q10 0 10 -10 m-112 10 h10 m48 0 h10 m0 0 h34 m20 -44 h10 m56 0 h10 m0 0 h10 m26 0 h10 m40 0 h10 m68 0 h10 m-108 0 h20 m88 0 h20 m-128 0 q10 0 10 10 m108 0 q0 -10 10 -10 m-118 10 v24 m108 0 v-24 m-108 24 q0 10 10 10 m88 0 q10 0 10 -10 m-98 10 h10 m56 0 h10 m0 0 h12 m-128 -44 l20 0 m-1 0 q-9 0 -9 -10 l0 -24 q0 -10 10 -10 m128 44 l20 0 m-20 0 q10 0 10 -10 l0 -24 q0 -10 -10 -10 m-128 0 h10 m24 0 h10 m0 0 h84 m20 44 h10 m26 0 h10 m0 0 h10 m26 0 h10 m20 0 h10 m0 0 h96 m-126 0 l20 0 m-1 0 q-9 0 -9 -10 l0 -14 q0 -10 10 -10 m106 34 l20 0 m-20 0 q10 0 10 -10 l0 -14 q0 -10 -10 -10 m-106 0 h10 m86 0 h10 m20 34 h10 m26 0 h10 m3 0 h-3"/>
+         <polygon points="745 61 753 57 753 65"/>
+         <polygon points="745 61 737 57 737 65"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#macro_def" title="macro_def">macro_def</a></div>
+               <div>         ::= ( <a href="#const_var" title="const_var">const_var</a> | 'void' ) <a href="#string" title="string">string</a> '[' ( <a href="#var_def" title="var_def">var_def</a> | <a href="#string" title="string">string</a> ) ( ',' ( <a href="#var_def" title="var_def">var_def</a> | <a href="#string" title="string">string</a> ) )* ']' '[' <a href="#statement" title="statement">statement</a>* ']'</div></code></div>
+      </p>
+      <p>referenced by:
+         <ul>
+            <li><a href="#grammar" title="grammar">grammar</a></li>
+         </ul>
+      </p><br /><p style="font-size: 14px; font-weight:bold"><a name="grammar">grammar:</a></p><svg xmlns="http://www.w3.org/2000/svg" width="225" height="141">
+         <polygon points="9 33 1 29 1 37"/>
+         <polygon points="17 33 9 29 9 37"/><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#const_def" xlink:title="const_def">
+            <rect x="71" y="19" width="82" height="32"/>
+            <rect x="69" y="17" width="82" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="79" y="37">const_def</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#group_def" xlink:title="group_def">
+            <rect x="71" y="63" width="84" height="32"/>
+            <rect x="69" y="61" width="84" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="79" y="81">group_def</text></a><a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#macro_def" xlink:title="macro_def">
+            <rect x="71" y="107" width="86" height="32"/>
+            <rect x="69" y="105" width="86" height="32" class="nonterminal"/>
+            <text class="nonterminal" x="79" y="125">macro_def</text></a><path class="line" d="m17 33 h2 m40 0 h10 m82 0 h10 m0 0 h4 m-126 0 h20 m106 0 h20 m-146 0 q10 0 10 10 m126 0 q0 -10 10 -10 m-136 10 v24 m126 0 v-24 m-126 24 q0 10 10 10 m106 0 q10 0 10 -10 m-116 10 h10 m84 0 h10 m0 0 h2 m-116 -10 v20 m126 0 v-20 m-126 20 v24 m126 0 v-24 m-126 24 q0 10 10 10 m106 0 q10 0 10 -10 m-116 10 h10 m86 0 h10 m-146 -88 l20 0 m-1 0 q-9 0 -9 -10 l0 -12 q0 -10 10 -10 m146 32 l20 0 m-20 0 q10 0 10 -10 l0 -12 q0 -10 -10 -10 m-146 0 h10 m0 0 h136 m23 32 h-3"/>
+         <polygon points="215 33 223 29 223 37"/>
+         <polygon points="215 33 207 29 207 37"/></svg><p>
+         <div class="ebnf"><code>
+               <div><a href="#grammar" title="grammar">grammar</a>  ::= ( <a href="#const_def" title="const_def">const_def</a> | <a href="#group_def" title="group_def">group_def</a> | <a href="#macro_def" title="macro_def">macro_def</a> )+</div></code></div>
+      </p>
+      <p>no references</p><br /><hr />
+      <p>
+         <table class="signature" border="0">
+            <tr>
+               <td style="width: 100%"> </td>
+               <td valign="top">
+                  <nobr class="signature">... generated by <a name="Railroad-Diagram-Generator" class="signature" title="https://bottlecaps.de/rr/ui" href="https://bottlecaps.de/rr/ui" target="_blank">RR - Railroad Diagram Generator</a></nobr>
+               </td>
+               <td><a name="Railroad-Diagram-Generator" title="https://bottlecaps.de/rr/ui" href="https://bottlecaps.de/rr/ui" target="_blank"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16">
+                        <g transform="scale(0.178)">
+                           <circle cx="45" cy="45" r="45" style="stroke:none; fill:#FFCC00"/>
+                           <circle cx="45" cy="45" r="42" style="stroke:#332900; stroke-width:2px; fill:#FFCC00"/>
+                           <line x1="15" y1="15" x2="75" y2="75" stroke="#332900" style="stroke-width:9px;"/>
+                           <line x1="15" y1="75" x2="75" y2="15" stroke="#332900" style="stroke-width:9px;"/>
+                           <text x="7" y="54" style="font-size:26px; font-family:Arial, Sans-serif; font-weight:bold; fill: #332900">R</text>
+                           <text x="64" y="54" style="font-size:26px; font-family:Arial, Sans-serif; font-weight:bold; fill: #332900">R</text>
+                        </g></svg></a></td>
+            </tr>
+         </table>
+      </p>
+   </body>
+</html>
