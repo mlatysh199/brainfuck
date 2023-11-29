@@ -33,7 +33,7 @@ class Lexer:
 	comment_chars = "#"
 	comment_break_chars = "\n"
 	commands = ["return"]
-	operators = ["and", "or", "not"]
+	operators = ["not", "~", "**", "*", "/", "+", "-", "<<", ">>", "&", "|", "^", "==", "and", "or", "<", ">", "<=", ">="]
 	types = ["num"]
 
 	def __init__(self, stream) -> None:
@@ -72,6 +72,15 @@ class Lexer:
 				self.pos += 1
 		return Token(TokenType.Number, number)
 
+	# Processes operators
+	def process_operators(self) -> Token:
+		operator = self.stream[self.pos]
+		self.pos += 1
+		while self.pos < len(self.stream) and self.stream[self.pos] in self.operator_chars and operator + self.stream[self.pos] in self.operators:
+			operator += self.stream[self.pos]
+			self.pos += 1
+		return Token(TokenType.Operator, operator)
+
 	# Gets the next token
 	def next_token(self) -> Token:
 		if self.pos >= len(self.stream): return Token(TokenType.EOF, None)
@@ -84,6 +93,7 @@ class Lexer:
 			char = self.stream[self.pos]
 		if char in self.word_chars: return self.process_word()
 		elif char in self.number_chars: return self.process_number()
+		elif char in self.operator_chars: return self.process_operators()
 		else: self.pos += 1
 		if char in self.bracket_chars: return Token(TokenType.Bracket, char)
 		elif char in self.break_chars: return Token(TokenType.Breaker, None)
