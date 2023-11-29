@@ -2,79 +2,94 @@ from enum import Enum
 
 # Token types
 class TokenType(Enum):
-    EOF = -1
-    Breaker = 0
-    Command = 1
-    Word = 2
-    Number = 3
-    Bracket = 4
-    Separator = 5
-    Definer = 6
+	EOF = -1
+	Breaker = 0
+	Command = 1
+	Word = 2
+	Number = 3
+	Bracket = 4
+	Separator = 5
+	Operator = 6
+	Parenthesis = 7
+	Type = 8
 
 # Token container
 class Token:
-    def __init__(self, type : TokenType, value) -> None:
-        self.type = type
-        self.value = value
+	def __init__(self, type : TokenType, value) -> None:
+		self.type = type
+		self.value = value
 
 # Reads tokens from string
 class Lexer:
-    word_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
-    bracket_chars = "[]"
-    break_chars = "\n;"
-    number_chars = "0123456789"
-    separator_chars = ","
-    definer_chars = ":"
-    ignore_chars = " \t"
-    comment_chars = "#"
-    comment_break_chars = "\n"
-    commands = ["setas", "invite", "clear", "ifel", "while", "pop", "void", "mac", "group", "rename", "split", "merge", "nmerge", "finalize"]
+	word_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
+	bracket_chars = "[]{}"
+	parenthesis_chars = "()"
+	break_chars = "\n;"
+	number_chars = "0123456789"
+	decimal_chars = "."
+	operator_chars = "-+|&~=*/><^"
+	separator_chars = ","
+	ignore_chars = " \t"
+	comment_chars = "#"
+	comment_break_chars = "\n"
+	commands = ["return"]
+	operators = ["and", "or", "not"]
+	types = ["num"]
 
-    def __init__(self, stream) -> None:
-        self.stream = stream
-        self.pos = 0
+	def __init__(self, stream) -> None:
+		self.stream = stream
+		self.pos = 0
 
-    # Consumes comments
-    def process_comment(self) -> None:
-        while self.pos < len(self.stream) and self.stream[self.pos] not in self.comment_break_chars: self.pos += 1
-        self.pos += 1
+	# Consumes comments
+	def process_comment(self) -> None:
+		while self.pos < len(self.stream) and self.stream[self.pos] not in self.comment_break_chars: self.pos += 1
+		self.pos += 1
 
-    # Processes words
-    def process_word(self) -> Token:
-        word = ""
-        while self.pos < len(self.stream) and (self.stream[self.pos] in self.word_chars or self.stream[self.pos] in self.number_chars):
-            word += self.stream[self.pos]
-            self.pos += 1
-        if word in self.commands: return Token(TokenType.Command, word)
-        return Token(TokenType.Word, word)
+	# Processes words
+	def process_word(self) -> Token:
+		word = ""
+		while self.pos < len(self.stream) and (self.stream[self.pos] in self.word_chars or self.stream[self.pos] in self.number_chars):
+			word += self.stream[self.pos]
+			self.pos += 1
+		if word in self.commands: return Token(TokenType.Command, word)
+		elif word in self.operators: return Token(TokenType.Operator, word)
+		elif word in self.types: return Token(TokenType.Type, word)
+		return Token(TokenType.Word, word)
 
-    # Processes numbers
-    def process_number(self) -> Token:
-        number = 0
-        while self.pos < len(self.stream) and self.stream[self.pos] in self.number_chars:
-            number *= 10
-            number += ord(self.stream[self.pos]) - ord('0')
-            self.pos += 1
-        return Token(TokenType.Number, number)
+	# Processes numbers
+	def process_number(self) -> Token:
+		number = 0
+		while self.pos < len(self.stream) and self.stream[self.pos] in self.number_chars:
+			number *= 10
+			number += ord(self.stream[self.pos]) - ord('0')
+			self.pos += 1
+		if self.pos < len(self.stream) and self.stream[self.pos] in self.decimal_chars:
+			decimal = 1.0
+			self.pos += 1
+			while self.pos < len(self.stream) and self.stream[self.pos] in self.number_chars:
+				decimal /= 10
+				number += decimal*(ord(self.stream[self.pos]) - ord('0'))
+				self.pos += 1
+		return Token(TokenType.Number, number)
 
-    # Gets the next token
-    def next_token(self) -> Token:
-        if self.pos >= len(self.stream): return Token(TokenType.EOF, None)
-        char = self.stream[self.pos]
-        while True:
-            if char in self.ignore_chars: self.pos += 1
-            elif char in self.comment_chars: self.process_comment()
-            else: break
-            if self.pos >= len(self.stream): return Token(TokenType.EOF, None)
-            char = self.stream[self.pos]
-        if char in self.word_chars: return self.process_word()
-        elif char in self.number_chars: return self.process_number()
-        else: self.pos += 1
-        if char in self.bracket_chars: return Token(TokenType.Bracket, char)
-        elif char in self.break_chars: return Token(TokenType.Breaker, None)
-        elif char in self.separator_chars: return Token(TokenType.Separator, None)
-        elif char in self.definer_chars: return Token(TokenType.Definer, None)
-        raise KeyError(f"{char} is not a valid character.")
+	# Gets the next token
+	def next_token(self) -> Token:
+		if self.pos >= len(self.stream): return Token(TokenType.EOF, None)
+		char = self.stream[self.pos]
+		while True:
+			if char in self.ignore_chars: self.pos += 1
+			elif char in self.comment_chars: self.process_comment()
+			else: break
+			if self.pos >= len(self.stream): return Token(TokenType.EOF, None)
+			char = self.stream[self.pos]
+		if char in self.word_chars: return self.process_word()
+		elif char in self.number_chars: return self.process_number()
+		else: self.pos += 1
+		if char in self.bracket_chars: return Token(TokenType.Bracket, char)
+		elif char in self.break_chars: return Token(TokenType.Breaker, None)
+		elif char in self.separator_chars: return Token(TokenType.Separator, None)
+		elif char in self.parenthesis_chars: return Token(TokenType.Parenthesis, char)
+		raise KeyError(f"{char} is not a valid character.")
 
 # Manages variables
 class BinX:
@@ -83,12 +98,12 @@ class BinX:
 		self.offset = offset
 		self.protected = protected
 	
-    # Clears the variable
+	# Clears the variable
 	def clear(self, forced=False) -> str:
 		if self.protected and not forced: raise AttributeError("Protected variables cannot be altered.")
 		return f"{self.offset}>clearbinx({self.x}){self.offset}<"
 
-    # Moves the contents of one variable into this one (thus clearing the other one).
+	# Moves the contents of one variable into this one (thus clearing the other one).
 	def setas(self, var) -> str:
 		if self.protected: raise AttributeError("Protected variables cannot be altered.")
 		if self.offset == var.offset: raise AttributeError(f"Variables can't share offsets.")
@@ -96,7 +111,7 @@ class BinX:
 		if self.offset < var.offset: return self.clear() + f"{var.offset}>downbinx({self.x};{var.offset - self.offset - 1}){var.offset}<"
 		return self.clear() + f"{var.offset}>upbinx({self.x};{self.offset - var.offset - 1}){var.offset}<"
 
-    # Copies variable to top of stack
+	# Copies variable to top of stack
 	def copytotop(self, var, top_offset) -> str:
 		if self.protected: raise AttributeError("Protected variables cannot be altered.")
 		if self.offset >= var.offset or top_offset - var.x != var.offset: raise AttributeError(f"Variables can only be copied to the top of the stack.")
@@ -122,7 +137,7 @@ class BinXManager(dict):
 		self.components = []
 		self.is_finalized = False
 
-    # Splits (inplace) a group into separate variables
+	# Splits (inplace) a group into separate variables
 	def split(self, name, group) -> None:
 		if self.is_finalized: raise ReferenceError("This BinXManager has already been finalized.")
 		var = self[name]
@@ -139,7 +154,7 @@ class BinXManager(dict):
 			pos += 1
 			i_var = BinX(0, i_var.offset + i_var.x)
 
-    # Merges (inplace) a group of variables into one variable
+	# Merges (inplace) a group of variables into one variable
 	def inplace_merge(self, name, group, new_name=None) -> None:
 		if not new_name: new_name = name + '.' + group.name
 		if self.is_finalized: raise ReferenceError("This BinXManager has already been finalized.")
@@ -158,7 +173,7 @@ class BinXManager(dict):
 			pop_var_name = self.components.pop(pos)[1]
 			del self[pop_var_name]
 	
-    # Merges (not inplace) a group of variables into one variable
+	# Merges (not inplace) a group of variables into one variable
 	def merge(self, names, group, new_name=None) -> str:
 		if not new_name: new_name = names[0] + '.' + group.name
 		if self.is_finalized: raise ReferenceError("This BinXManager has already been finalized.")
@@ -170,7 +185,7 @@ class BinXManager(dict):
 		self.inplace_merge(new_name + ".0", group, new_name)
 		return data
 
-    # Eliminates value on the top of the stack
+	# Eliminates value on the top of the stack
 	def pop(self, forced=False) -> str:
 		if self.is_finalized: raise ReferenceError("This BinXManager has already been finalized.")
 		var_name, var = self.components.pop()
@@ -178,8 +193,8 @@ class BinXManager(dict):
 		del self[var_name]
 		self.offset -= var.x
 		return var.clear()
-    
-    # Swaps two variables
+
+	# Swaps two variables
 	def swap(self, name_1, name_2) -> str:
 		if self.is_finalized: raise ReferenceError("This BinXManager has already been finalized.")
 		if var_1.x != var_2.x: raise AttributeError(f"{name_1} ({name_1.x}) and {name_2} ({name_2.x}) have different sizes.")
@@ -203,7 +218,7 @@ class BinXManager(dict):
 		new_var.offset = self.relative_offset
 		return data, new_var
 	
-    # Void return
+	# Void return
 	def finalize(self) -> str:
 		if self.is_finalized: raise ReferenceError("This BinXManager has already been finalized.")
 		data = ""
