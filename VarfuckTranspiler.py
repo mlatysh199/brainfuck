@@ -8,21 +8,23 @@ class TokenType(Enum):
 	Word = 2
 	Number = 3
 	Bracket = 4
-	Separator = 5
-	Operator = 6
-	Parenthesis = 7
-	Type = 8
+	Brace = 5
+	Separator = 6
+	Operator = 7
+	Parenthesis = 8
+	Type = 9
 
 # Token container
 class Token:
-	def __init__(self, type : TokenType, value) -> None:
+	def __init__(self, type: TokenType, value) -> None:
 		self.type = type
 		self.value = value
 
 # Reads tokens from string
 class Lexer:
 	word_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
-	bracket_chars = "[]{}"
+	bracket_chars = "[]"
+	brace_chars = "{}"
 	parenthesis_chars = "()"
 	break_chars = "\n;"
 	number_chars = "0123456789"
@@ -96,10 +98,17 @@ class Lexer:
 		elif char in self.operator_chars: return self.process_operators()
 		else: self.pos += 1
 		if char in self.bracket_chars: return Token(TokenType.Bracket, char)
+		elif char in self.brace_chars: return Token(TokenType.Brace, char)
 		elif char in self.break_chars: return Token(TokenType.Breaker, None)
 		elif char in self.separator_chars: return Token(TokenType.Separator, None)
 		elif char in self.parenthesis_chars: return Token(TokenType.Parenthesis, char)
 		raise KeyError(f"{char} is not a valid character.")
+	
+	def get_position(self) -> int:
+		return self.pos
+	
+	def set_position(self, pos: int) -> None:
+		self.pos = pos
 
 # Manages variables
 class BinX:
@@ -297,6 +306,58 @@ class BigMacro:
 	def execute_mac(self, code):
 		pass
 
+# Abstract Syntax Tree node
+class AstNode:
+
+	children = []
+
+	# Initializes node with current lexer
+	def __init__(self, lexer: Lexer) -> None:
+		self.lexer = lexer
+		self.lexer_pos = lexer.get_position()
+	
+	# Virtual method that attempts to match corresponding production rule
+	def match(self) -> bool:
+		return False
+	
+	# Resets lexer if match failed
+	def __del__(self) -> None:
+		self.children.clear()
+		self.lexer.set_position(self.lexer_pos)
+
+class TerminalAstNode(AstNode):
+
+	value = None
+
+	def __init__(self, lexer: Lexer, token_type: TokenType) -> None:
+		super().__init__(lexer)
+		self.token_type = token_type
+
+	def match(self) -> bool:
+		token = self.lexer.next_token()	
+		print(token.type)
+		if token.type == self.token_type:
+			self.value = token.value
+			return True
+		return False
+
+class ConstExpr(AstNode):
+	def match(self) -> bool:
+		node = TerminalAstNode(self.lexer, TokenType.Number)
+		if node.match():
+			self.children.append(node)
+			return True
+		return False
+
+class Grammar(AstNode):
+	def match(self) -> bool:
+		node = ConstExpr(self.lexer)
+		if node.match() and TerminalAstNode(self.lexer, TokenType.EOF).match():
+			self.children.append(node)
+			return True
+		return False
+
+
 # TODO create
 # Translates varfuck into macrofuck.
 class Transpiler:
@@ -314,5 +375,9 @@ class Transpiler:
 	def process_math(self, code):
 		pass
 	
+test = """12.55 #wikir wakir
+"""
+
 if __name__ == "__main__":
-	pass
+	g = Grammar(Lexer(test))
+	print(g.match())

@@ -37,4 +37,4 @@ const_def ::= string "=" const_expr
 statement ::= (call | return | while_or_repeat | ifel | const_def)
 block ::= "[" breaker* (statement breaker+)* "]"
 macro_def ::= type_struct param_struct const_param_struct block
-grammar ::= ((macro_def | const_def) breaker+)+
+grammar ::= (const_def breaker+)* macro_def breaker+ ((macro_def | const_def) breaker+)* call breaker+
