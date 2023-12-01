@@ -309,12 +309,11 @@ class BigMacro:
 # Abstract Syntax Tree node
 class AstNode:
 
-	children = []
-
 	# Initializes node with current lexer
 	def __init__(self, lexer: Lexer) -> None:
 		self.lexer = lexer
 		self.lexer_pos = lexer.get_position()
+		self.children = []
 	
 	# Virtual method that attempts to match corresponding production rule
 	def match(self) -> bool:
@@ -327,26 +326,52 @@ class AstNode:
 
 class TerminalAstNode(AstNode):
 
-	value = None
-
 	def __init__(self, lexer: Lexer, token_type: TokenType) -> None:
 		super().__init__(lexer)
 		self.token_type = token_type
+		self.value = None
 
 	def match(self) -> bool:
 		token = self.lexer.next_token()	
-		print(token.type)
 		if token.type == self.token_type:
 			self.value = token.value
 			return True
 		return False
 
+class Const(TerminalAstNode):
+	def __init__(self, lexer: Lexer) -> None:
+		super().__init__(lexer, TokenType.Number)
+
+class String(TerminalAstNode):
+	def __init__(self, lexer: Lexer) -> None:
+		super().__init__(lexer, TokenType.Word)
+
+class Parenthesis(TerminalAstNode):
+	def __init__(self, lexer: Lexer) -> None:
+		super().__init__(lexer, TokenType.Parenthesis)
+
 class ConstExpr(AstNode):
 	def match(self) -> bool:
-		node = TerminalAstNode(self.lexer, TokenType.Number)
+		node = Const(self.lexer)
 		if node.match():
 			self.children.append(node)
 			return True
+		node = String(self.lexer)
+		if node.match():
+			self.children.append(node)
+			node = Parenthesis(self.lexer)
+			if node.match() and node.value == "(":
+				self.children.append(node)
+				node = ConstExpr(self.lexer)
+				if node.match():
+					self.children.append(node)
+					node = Parenthesis(self.lexer)
+					if node.match() and node.value == ")":
+						self.children.append(node)
+						return True
+					self.children.pop()
+				self.children.pop()
+			self.children.pop()
 		return False
 
 class Grammar(AstNode):
@@ -375,7 +400,7 @@ class Transpiler:
 	def process_math(self, code):
 		pass
 	
-test = """12.55 #wikir wakir
+test = """f(f(f(12.55))) #wikir wakir
 """
 
 if __name__ == "__main__":
