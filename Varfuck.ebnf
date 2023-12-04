@@ -29,12 +29,12 @@ param_struct ::= "{" (const_expr string (separator const_expr string)*)? "}"
 const_param_struct ::= "{" (const_types string (separator const_types string)*)? "}"
 var_struct ::= "{" (string? (separator string?)*)? "}"
 const_struct ::= "{" (const_expr (separator const_expr)*)? "}"
-call ::= var_struct string var_struct const_struct
+call ::= const_struct string var_struct var_struct 
 return ::= "return" var_struct?
 while_or_repeat ::= const_expr block
 ifel ::= (const_expr) block block
 const_def ::= string "=" const_expr
 statement ::= (call | return | while_or_repeat | ifel | const_def)
 block ::= "[" breaker* (statement breaker+)* "]"
-macro_def ::= type_struct param_struct const_param_struct block
+macro_def ::= const_param_struct string type_struct param_struct block
 grammar ::= (const_def breaker+)* macro_def breaker+ ((macro_def | const_def) breaker+)* call breaker+
