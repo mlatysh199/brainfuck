@@ -1,8 +1,8 @@
-nzdigit ::= "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
-digit ::= "0" | nzdigit
+nzdigit ::= "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+digit ::= "0" | nzdigit;
 nconst ::= "0"
-    | nzdigit digit*
-const ::= nconst ("." nconst)?
+    | nzdigit digit*;
+const ::= nconst ("." nconst)?;
 chars ::= "A" | "B" | "C" | "D" | "E" | "F" | "G"
        | "H" | "I" | "J" | "K" | "L" | "M" | "N"
        | "O" | "P" | "Q" | "R" | "S" | "T" | "U"
@@ -10,31 +10,31 @@ chars ::= "A" | "B" | "C" | "D" | "E" | "F" | "G"
        | "c" | "d" | "e" | "f" | "g" | "h" | "i"
        | "j" | "k" | "l" | "m" | "n" | "o" | "p"
        | "q" | "r" | "s" | "t" | "u" | "v" | "w"
-       | "x" | "y" | "z" | "_"
-string ::= chars+
-const_op ::= "**" | "*" | "/" | "+" | "-" | "<<" | ">>" | "&" | "|" | "^" | "==" | "and" | "or" | "<" | ">" | "<=" | ">="
-u_const_op ::= "~" | "-" | "not"
+       | "x" | "y" | "z" | "_";
+string ::= chars+;
+const_op ::= "**" | "*" | "/" | "+" | "-" | "<<" | ">>" | "&" | "|" | "^" | "==" | "and" | "or" | "<" | ">" | "<=" | ">=";
+u_const_op ::= "~" | "-" | "not";
 const_expr ::= const
     | string "(" const_expr ")"
     | "(" const_expr ")"
     | u_const_op const_expr
     | const_expr const_op const_expr
-    | string
-separator ::= ","
+    | string;
+separator ::= ",";
 breaker ::= ";"
-    | "\n"
-const_types ::= "num"
-type_struct ::= "{" (const_expr (separator const_expr)*)? "}"
-param_struct ::= "{" (const_expr string (separator const_expr string)*)? "}"
-const_param_struct ::= "{" (const_types string (separator const_types string)*)? "}"
-var_struct ::= "{" (string? (separator string?)*)? "}"
-const_struct ::= "{" (const_expr (separator const_expr)*)? "}"
-call ::= const_struct string var_struct var_struct 
-return ::= "return" var_struct?
-while_or_repeat ::= const_expr block
-ifel ::= (const_expr) block block
-const_def ::= string "=" const_expr
-statement ::= (call | return | while_or_repeat | ifel | const_def)
-block ::= "[" breaker* (statement breaker+)* "]"
-macro_def ::= const_param_struct string type_struct param_struct block
-grammar ::= (const_def breaker+)* macro_def breaker+ ((macro_def | const_def) breaker+)* call breaker+
+    | "\n";
+const_types ::= "num";
+type_struct ::= "{" (const_expr (separator const_expr)*)? "}";
+param_struct ::= "{" (const_expr string (separator const_expr string)*)? "}";
+const_param_struct ::= "{" (const_types string (separator const_types string)*)? "}";
+var_struct ::= "{" (string? (separator string?)*)? "}";
+const_struct ::= "{" (const_expr (separator const_expr)*)? "}";
+call ::= const_struct string var_struct var_struct ;
+return ::= "return" var_struct?;
+while_or_repeat ::= const_expr block;
+ifel ::= (const_expr) block block;
+const_def ::= string "=" const_expr;
+statement ::= (call | return | while_or_repeat | ifel | const_def);
+block ::= "[" breaker* (statement breaker+)* "]";
+macro_def ::= const_param_struct string type_struct param_struct block;
+grammar ::= (const_def breaker+)* macro_def breaker+ ((macro_def | const_def) breaker+)* call breaker+;
