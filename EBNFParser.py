@@ -64,7 +64,7 @@ class Lexer(VP.BaseLexer):
 		elif char in self.zero_or_one_chars: return VP.Token(TokenType.ZeroOrOne, None)
 		raise KeyError(f"{char} is not a valid character.")
 
-def build_ebnf_parser() -> tuple[VP.Grammar,dict[VP.Enum|VP.Token, VP.Enum|VP.Token],dict[str, VP.Token|VP.Enum],set[VP.Enum|VP.Token],set[str]]:
+class Parser:
 	terminal_dict = dict()
 	rule_dict = {
 		"word" : TokenType.Word,
@@ -75,9 +75,11 @@ def build_ebnf_parser() -> tuple[VP.Grammar,dict[VP.Enum|VP.Token, VP.Enum|VP.To
 		VP.Token(TokenType.Parenthesis, ")"),
 		TokenType.EOF,
 		TokenType.Setter,
-		TokenType.Breaker
+		TokenType.Breaker,
+		TokenType.Or
 	}
 	rule_set = {}
+
 	word_rule = VP.RuleRef("word", None)
 	terminal_rule = VP.RuleRef("terminal", None)
 	temp_count = VP.Count(None, VP.CountType.One)
@@ -122,19 +124,20 @@ def build_ebnf_parser() -> tuple[VP.Grammar,dict[VP.Enum|VP.Token, VP.Enum|VP.To
 		VP.Count(VP.Terminal(TokenType.EOF), VP.CountType.One)
 	]
 	grammar_rule = VP.RuleRef("grammar", VP.Count(VP.Concat(grammar_concat_list), VP.CountType.One))
-	return VP.Grammar(grammar_rule), terminal_dict, rule_dict, terminal_set, rule_set
 
-def show_AST_2(node: VP.ASTNode|VP.Token, level = 0):
-	print(level*"\t", end="")
-	if type(node) == VP.Token: print(node.type, repr(str(node.value)))
-	else:
-		print("> ", node.rule_name)
-		for i in node.children:
-			show_AST_2(i, level + 1)
+	grammar = VP.Grammar(grammar_rule)
+	del grammar_rule, grammar_concat_list, rule_rule, rule_concat_list, alternation_rule, alter_concat_list,\
+		alter_concat_list_2, concatenation_rule, factor_rule, factor_alter, factor_alter_list, term_rule,\
+		term_alter_list, term_concat_list, temp_count, terminal_rule, word_rule
+
+	def __init__(self, data: str) -> None:
+		self.lexer = Lexer(data)
+		self.parser = VP.Parser(Parser.grammar, self.lexer, Parser.terminal_dict, Parser.rule_dict, Parser.terminal_set, Parser.rule_set)
+	
+	def parse(self) -> VP.ASTNode:
+		return self.parser.parse()
 
 if __name__ == "__main__":
 	with open("Varfuck.ebnf", "r") as f:
-		g, d1, d2, s1, s2 = build_ebnf_parser()
-		l = Lexer(f.read())
-		p = VP.Parser(g, l, d1, d2, s1, s2)
-		show_AST_2(p.parse())
+		p = Parser(f.read())
+		VP.show_AST(p.parse())

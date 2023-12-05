@@ -358,6 +358,12 @@ class Parser:
 	def reset(self) -> None:
 		self.lexer.set_position(0)
 
-
+def show_AST(node: ASTNode|Token, level = 0):
+	print(level*"\t", end="")
+	if type(node) == Token: print(node.type, repr(str(node.value)))
+	else:
+		print("> ", node.rule_name)
+		for i in node.children:
+			show_AST(i, level + 1)
 
 		
