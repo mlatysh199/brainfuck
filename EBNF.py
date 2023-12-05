@@ -136,8 +136,69 @@ class Parser:
 	
 	def parse(self) -> VP.ASTNode:
 		return self.parser.parse()
+	
+	# From this point on it's just a tired mix of me trying to be dynamic and implementing the IF statically
+	def __get_term(self, node: VP.ASTNode|VP.Token) -> VP.Concat|VP.RuleRef|VP.Alter|VP.Terminal:
+		if type(node) == VP.Token:
+			if node.type == TokenType.Word: return self.__get_rule(node.value)[0]
+			return VP.Terminal(node)
+		return self.__get_next(node).node # ??????
+
+	def __get_factor(self, data: list[VP.ASTNode|VP.Token]) -> tuple[VP.Concat|VP.RuleRef|VP.Alter|VP.Terminal, VP.CountType]:
+		term = self.__get_term(data[0].children[0])
+		count = VP.CountType.One
+		if len(data) == 2:
+			n = data[1].type
+			if n == TokenType.ZeroOrMore: count = VP.CountType.ZeroOrMany
+			elif n == TokenType.ZeroOrOne: count = VP.CountType.ZeroOrOne
+			elif n == TokenType.OneOrMore: count = VP.CountType.OneOrMany
+			else: raise SyntaxError("Unexpected pluralization.")
+		return term, count
+
+	def __get_concat(self, data: list[VP.ASTNode]) -> tuple[VP.Concat, VP.CountType]:
+		return VP.Concat([self.__get_next(node) for node in data]), VP.CountType.One
+
+	def __get_alter(self, data: list[VP.ASTNode]) -> tuple[VP.Alter, VP.CountType]:
+		return VP.Alter([self.__get_next(node) for node in data]), VP.CountType.One
+
+	def __get_rule(self, rule_name: str) -> tuple[VP.RuleRef, VP.CountType]:
+		if rule_name not in self.rules:
+			self.rules[rule_name] = VP.RuleRef(rule_name, None)
+			rule_tree = None
+			try:
+				rule_tree = self.rule_trees[rule_name]
+			except KeyError:
+				raise SyntaxError(f"Rule {rule_name} not found.")
+			self.rules[rule_name].spec = self.__get_next(rule_tree.children[1])
+		return self.rules[rule_name], VP.CountType.One
+	
+	def __get_next(self, node: VP.ASTNode) -> VP.Count:
+		data = None
+		name = node.rule_name
+		if name == "rule": data = self.__get_rule(node.children[0].value)
+		elif name == "term": raise SyntaxError("Term should be proceeded by factor.")
+		elif name == "alter": data = self.__get_alter(node.children)
+		elif name == "concat": data = self.__get_concat(node.children)
+		elif name == "factor": data = self.__get_factor(node.children)
+		else: raise SyntaxError("Unexpected node in tree.")
+		return VP.Count(data[0], data[1])
+	
+	def build_if(self) -> VP.Grammar:
+		tree = self.parse()
+		if tree.rule_name != "grammar": raise SyntaxError("Not a grammar based AST.")
+		self.rule_trees: dict[str, VP.ASTNode] = dict()
+		self.rules: dict[str, VP.RuleRef] = dict()
+		for rule in tree.children:
+			rule_name = rule.children[0].value
+			self.rules
+			self.rule_trees[rule_name] = rule
+		result = VP.Grammar(VP.Count(self.__get_rule("grammar"), VP.CountType.One))
+		del self.rule_trees, self.rules
+
+def show_IF(data: VP.Grammar) -> None:
+	pass
 
 if __name__ == "__main__":
 	with open("Varfuck.ebnf", "r") as f:
 		p = Parser(f.read())
-		VP.show_AST(p.parse())
+		IF = p.build_if()
