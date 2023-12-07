@@ -2,7 +2,8 @@ nzdigit ::= "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
 digit ::= "0" | nzdigit;
 nconst ::= "0"
     | nzdigit digit*;
-const ::= nconst ("." nconst)?;
+constn ::= "0" | digit* nzdigit;
+const ::= nconst ("." constn)?;
 chars ::= "A" | "B" | "C" | "D" | "E" | "F" | "G"
        | "H" | "I" | "J" | "K" | "L" | "M" | "N"
        | "O" | "P" | "Q" | "R" | "S" | "T" | "U"
@@ -14,12 +15,12 @@ chars ::= "A" | "B" | "C" | "D" | "E" | "F" | "G"
 string ::= chars+;
 const_op ::= "**" | "*" | "/" | "+" | "-" | "<<" | ">>" | "&" | "|" | "^" | "==" | "and" | "or" | "<" | ">" | "<=" | ">=";
 u_const_op ::= "~" | "-" | "not";
-const_expr ::= const
+const_expr_p ::= const_op const_expr const_expr_p | "";
+const_expr ::= (const
     | string "(" const_expr ")"
     | "(" const_expr ")"
     | u_const_op const_expr
-    | const_expr const_op const_expr
-    | string;
+    | string) const_expr_p;
 separator ::= ",";
 breaker ::= ";"
     | "\n";
@@ -37,4 +38,4 @@ const_def ::= string "=" const_expr;
 statement ::= (call | return | while_or_repeat | ifel | const_def);
 block ::= "[" breaker* (statement breaker+)* "]";
 macro_def ::= const_param_struct string type_struct param_struct block;
-grammar ::= (const_def breaker+)* macro_def breaker+ ((macro_def | const_def) breaker+)* call breaker+;
+grammar ::= (const_def breaker+)* macro_def breaker+ ((macro_def | const_def) breaker+)* call breaker*;

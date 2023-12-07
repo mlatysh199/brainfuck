@@ -1,4 +1,6 @@
 from enum import Enum
+import EBNF
+import VirtualParser as VP
 
 # Token types
 class TokenType(Enum):
@@ -14,14 +16,8 @@ class TokenType(Enum):
 	Parenthesis = 8
 	Type = 9
 
-# Token container
-class Token:
-	def __init__(self, type: TokenType, value) -> None:
-		self.type = type
-		self.value = value
-
 # Reads tokens from string
-class Lexer:
+class Lexer(VP.BaseLexer):
 	word_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
 	bracket_chars = "[]"
 	brace_chars = "{}"
@@ -34,7 +30,7 @@ class Lexer:
 	ignore_chars = " \t"
 	comment_chars = "#"
 	comment_break_chars = "\n"
-	commands = ["return"]
+	commands = ["return", "="]
 	operators = ["not", "~", "**", "*", "/", "+", "-", "<<", ">>", "&", "|", "^", "==", "and", "or", "<", ">", "<=", ">="]
 	types = ["num"]
 
@@ -48,18 +44,18 @@ class Lexer:
 		self.pos += 1
 
 	# Processes words
-	def process_word(self) -> Token:
+	def process_word(self) -> VP.Token:
 		word = ""
 		while self.pos < len(self.stream) and (self.stream[self.pos] in self.word_chars or self.stream[self.pos] in self.number_chars):
 			word += self.stream[self.pos]
 			self.pos += 1
-		if word in self.commands: return Token(TokenType.Command, word)
-		elif word in self.operators: return Token(TokenType.Operator, word)
-		elif word in self.types: return Token(TokenType.Type, word)
-		return Token(TokenType.Word, word)
+		if word in self.commands: return VP.Token(TokenType.Command, word)
+		elif word in self.operators: return VP.Token(TokenType.Operator, word)
+		elif word in self.types: return VP.Token(TokenType.Type, word)
+		return VP.Token(TokenType.Word, word)
 
 	# Processes numbers
-	def process_number(self) -> Token:
+	def process_number(self) -> VP.Token:
 		number = 0
 		while self.pos < len(self.stream) and self.stream[self.pos] in self.number_chars:
 			number *= 10
@@ -72,36 +68,38 @@ class Lexer:
 				decimal /= 10
 				number += decimal*(ord(self.stream[self.pos]) - ord('0'))
 				self.pos += 1
-		return Token(TokenType.Number, number)
+		return VP.Token(TokenType.Number, str(number))
 
 	# Processes operators
-	def process_operators(self) -> Token:
+	def process_operators(self) -> VP.Token:
 		operator = self.stream[self.pos]
 		self.pos += 1
 		while self.pos < len(self.stream) and self.stream[self.pos] in self.operator_chars and operator + self.stream[self.pos] in self.operators:
 			operator += self.stream[self.pos]
 			self.pos += 1
-		return Token(TokenType.Operator, operator)
+		if operator not in self.operators:
+			if operator in self.commands: return VP.Token(TokenType.Command, operator)
+		return VP.Token(TokenType.Operator, operator)
 
 	# Gets the next token
-	def next_token(self) -> Token:
-		if self.pos >= len(self.stream): return Token(TokenType.EOF, None)
+	def next_token(self) -> VP.Token:
+		if self.pos >= len(self.stream): return VP.Token(TokenType.EOF, None)
 		char = self.stream[self.pos]
 		while True:
 			if char in self.ignore_chars: self.pos += 1
 			elif char in self.comment_chars: self.process_comment()
 			else: break
-			if self.pos >= len(self.stream): return Token(TokenType.EOF, None)
+			if self.pos >= len(self.stream): return VP.Token(TokenType.EOF, None)
 			char = self.stream[self.pos]
 		if char in self.word_chars: return self.process_word()
 		elif char in self.number_chars: return self.process_number()
 		elif char in self.operator_chars: return self.process_operators()
 		else: self.pos += 1
-		if char in self.bracket_chars: return Token(TokenType.Bracket, char)
-		elif char in self.brace_chars: return Token(TokenType.Brace, char)
-		elif char in self.break_chars: return Token(TokenType.Breaker, None)
-		elif char in self.separator_chars: return Token(TokenType.Separator, None)
-		elif char in self.parenthesis_chars: return Token(TokenType.Parenthesis, char)
+		if char in self.bracket_chars: return VP.Token(TokenType.Bracket, char)
+		elif char in self.brace_chars: return VP.Token(TokenType.Brace, char)
+		elif char in self.break_chars: return VP.Token(TokenType.Breaker, None)
+		elif char in self.separator_chars: return VP.Token(TokenType.Separator, None)
+		elif char in self.parenthesis_chars: return VP.Token(TokenType.Parenthesis, char)
 		raise KeyError(f"{char} is not a valid character.")
 	
 	def get_position(self) -> int:
@@ -306,103 +304,54 @@ class BigMacro:
 	def execute_mac(self, code):
 		pass
 
-# Abstract Syntax Tree node
-class AstNode:
+class Parser:
+	terminal_dict = {
+		VP.Token(EBNF.TokenType.Terminal, "return") : VP.Token(TokenType.Command, "return"),
+		VP.Token(EBNF.TokenType.Terminal, "=") : VP.Token(TokenType.Command, "="),
+		VP.Token(EBNF.TokenType.Terminal, "(") : VP.Token(TokenType.Parenthesis, "("),
+		VP.Token(EBNF.TokenType.Terminal, ")") : VP.Token(TokenType.Parenthesis, ")"),	
+		VP.Token(EBNF.TokenType.Terminal, "[") : VP.Token(TokenType.Bracket, "["),
+		VP.Token(EBNF.TokenType.Terminal, "]") : VP.Token(TokenType.Bracket, "]"),
+		VP.Token(EBNF.TokenType.Terminal, "{") : VP.Token(TokenType.Brace, "{"),
+		VP.Token(EBNF.TokenType.Terminal, "}") : VP.Token(TokenType.Brace, "}"),
+		VP.Token(EBNF.TokenType.Terminal, "num") : VP.Token(TokenType.Type, "num")
+		
+	}
+	rule_dict = {
+		"string" : TokenType.Word,
+		"const" : TokenType.Number,
+		"separator" : TokenType.Separator,
+		"breaker" : TokenType.Breaker,
+		"const_op" : TokenType.Operator,
+		"u_const_op" : TokenType.Operator
+	}
+	terminal_set = {
+		VP.Token(TokenType.Command, "return"),
+		VP.Token(TokenType.Command, "="),
+		TokenType.Bracket,
+		TokenType.Brace,
+		TokenType.Parenthesis,
+		TokenType.Breaker,
+		TokenType.Parenthesis
+	}
+	rule_set = {
+	}
 
-	# Initializes node with current lexer
-	def __init__(self, lexer: Lexer) -> None:
-		self.lexer = lexer
-		self.lexer_pos = lexer.get_position()
-		self.children = []
+	grammar = None
+	with open("Varfuck.ebnf", "r") as f:
+		p = EBNF.Parser(f.read())
+		grammar = p.build_if()
 	
-	# Virtual method that attempts to match corresponding production rule
-	def match(self) -> bool:
-		return False
+	def __init__(self, data: str) -> None:
+		self.lexer = Lexer(data)
+		self.parser = VP.Parser(Parser.grammar, self.lexer, Parser.terminal_dict, Parser.rule_dict, Parser.terminal_set, Parser.rule_set)
 	
-	# Resets lexer if match failed
-	def __del__(self) -> None:
-		self.children.clear()
-		self.lexer.set_position(self.lexer_pos)
-
-class TerminalAstNode(AstNode):
-
-	def __init__(self, lexer: Lexer, token_type: TokenType) -> None:
-		super().__init__(lexer)
-		self.token_type = token_type
-		self.value = None
-
-	def match(self) -> bool:
-		token = self.lexer.next_token()	
-		if token.type == self.token_type:
-			self.value = token.value
-			return True
-		return False
-
-class Const(TerminalAstNode):
-	def __init__(self, lexer: Lexer) -> None:
-		super().__init__(lexer, TokenType.Number)
-
-class String(TerminalAstNode):
-	def __init__(self, lexer: Lexer) -> None:
-		super().__init__(lexer, TokenType.Word)
-
-class Parenthesis(TerminalAstNode):
-	def __init__(self, lexer: Lexer) -> None:
-		super().__init__(lexer, TokenType.Parenthesis)
-
-class ConstExpr(AstNode):
-	def match(self) -> bool:
-		node = Const(self.lexer)
-		if node.match():
-			self.children.append(node)
-			return True
-		node = String(self.lexer)
-		if node.match():
-			self.children.append(node)
-			node = Parenthesis(self.lexer)
-			if node.match() and node.value == "(":
-				self.children.append(node)
-				node = ConstExpr(self.lexer)
-				if node.match():
-					self.children.append(node)
-					node = Parenthesis(self.lexer)
-					if node.match() and node.value == ")":
-						self.children.append(node)
-						return True
-					self.children.pop()
-				self.children.pop()
-			self.children.pop()
-		return False
-
-class Grammar(AstNode):
-	def match(self) -> bool:
-		node = ConstExpr(self.lexer)
-		if node.match() and TerminalAstNode(self.lexer, TokenType.EOF).match():
-			self.children.append(node)
-			return True
-		return False
-
-
-# TODO create
-# Translates varfuck into macrofuck.
-class Transpiler:
-	def __init__(self, code):
-		self.macros = []
-		self.code = code.split('\n')
-		self.find_macros(code)
-
-	def find_macros(self, code):
-		pass
-
-	def convert(self, code):
-		pass
-
-	def process_math(self, code):
-		pass
-	
-test = """f(f(f(12.55))) #wikir wakir
-"""
+	def parse(self) -> VP.ASTNode:
+		result = self.parser.parse()
+		if len(result) == 0 or type(result[0]) != VP.ASTNode or result[0].rule != "grammar": raise SyntaxError("Not a grammar based AST.")
+		return result[0]
 
 if __name__ == "__main__":
-	g = Grammar(Lexer(test))
-	print(g.match())
+	with open("test.vk", "r") as f:
+		p = Parser(f.read())
+		VP.show_AST(p.parse())
