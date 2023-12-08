@@ -1,7 +1,7 @@
-wikir = 15;
+num wikir = 15;
 
-{} timir {} {} [
-    mangar = (25 + 16.0 + 1) /2;
+{num tangur} timir {54 + 32 - 3/(tin(4) - 1), 5} {5 help, 87 tinner} [
+    num mangar = (25 + 16.0 + 1) /2;
 ]
 
 {} timir {} {}

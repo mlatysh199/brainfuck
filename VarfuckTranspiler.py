@@ -1,6 +1,8 @@
 from enum import Enum
 import EBNF
 import VirtualParser as VP
+from math import *
+import numbers
 
 # Token types
 class TokenType(Enum):
@@ -30,7 +32,7 @@ class Lexer(VP.BaseLexer):
 	ignore_chars = " \t"
 	comment_chars = "#"
 	comment_break_chars = "\n"
-	commands = ["return", "="]
+	commands = ["fuck", "="]
 	operators = ["not", "~", "**", "*", "/", "+", "-", "<<", ">>", "&", "|", "^", "==", "and", "or", "<", ">", "<=", ">="]
 	types = ["num"]
 
@@ -348,8 +350,255 @@ class Parser:
 	
 	def parse(self) -> VP.ASTNode:
 		result = self.parser.parse()
-		if len(result) == 0 or type(result[0]) != VP.ASTNode or result[0].rule != "grammar": raise SyntaxError("Not a grammar based AST.")
+		if len(result) == 0 or type(result[0]) != VP.ASTNode or result[0].rule != "grammar": raise SyntaxError("Not a grammar based AST.") # TODO replace with correct error
 		return result[0]
+
+class Processor:
+	def __init__(self, tree: VP.ASTNode) -> None:
+		if tree.rule != "grammar": raise SyntaxError("Not a grammar based AST.") # TODO replace with correct error
+		self.tree = tree
+	
+	def correct_const_expr(self, node: VP.ASTNode) -> VP.ASTNode:
+		pass
+
+	def process(self) -> VP.ASTNode:
+		pass
+
+class Context:
+	def __init__(self, parent: "Context" = None, const_symbol_table: dict[str, "ConstExpr"] = dict()) -> None:
+		self.const_symbol_table = const_symbol_table
+		self.parent = parent
+	
+	def get_const(self, name: str) -> "ConstExpr"|None:
+		if name in self.const_symbol_table: return self.const_symbol_table[name]
+		if self.parent == None: return None
+		return self.parent.get_const(name)
+
+	def add_const(self, name: str, data: "ConstExpr") -> None:
+		if self.get_const(name) != None: raise NameError(f"{name} is already a defined constant.")
+		self.const_symbol_table[name] = data
+
+class ConstRef:
+	def __init__(self, name: str) -> None:
+		self.name = name
+
+class ConstExpr:
+	# math expressions
+	def __init__(self, data: list[str|ConstRef], force_nnint = False) -> None:
+		self.refs = {ref.name for ref in data if type(ref) == ConstRef}
+		self.data: list[str|ConstRef] = [str(eval(" ".join(self.data)))] if not len(self.refs) else data
+		self.force_nnint = force_nnint
+
+	def replace(self, name: str, expr: "ConstExpr") -> "ConstExpr":
+		if name not in self.refs: return ConstExpr(self.data.copy(), self.force_nnint)
+		cp = []
+		for i in self.data:
+			if type(i) == str or i.name != name: cp.append(i)
+			else: cp.extend(expr.data)
+		return ConstExpr(cp, self.force_nnint)
+
+	def __add__(self, other) -> "ConstExpr":
+		if type(other) != ConstExpr: raise TypeError(f"Cannot add ConstExpr with {type(other)}.")
+		return ConstExpr(other.data + ["+"] + self.data, self.force_nnint or other.force_nnint)
+	
+	def __sub__(self, other) -> "ConstExpr":
+		if type(other) != ConstExpr: raise TypeError(f"Cannot sub ConstExpr with {type(other)}.")
+		return ConstExpr(self.data + ["-"] + other.data, self.force_nnint or other.force_nnint)
+	
+	def __str__(self) -> str:
+		if len(self.refs): raise ValueError("ConstExpr hasn't been fully built.")
+		if self.force_nnint:
+			e = eval(self.data[0])
+			if int(e) != e or e < 0: raise ValueError(f"ConstExpr's forced NNINT, instead got {e}.")
+		return self.data[0]
+
+class BinX:
+	def __init__(self, name: str|None, size: ConstExpr) -> None:
+		self.name = name if name != "" else None
+		self.size = ConstExpr(size.data, True)
+
+class BinXManager:
+	def __init__(self, data: list[BinX], ret: list[ConstExpr]) -> None:
+		self.size = ConstExpr(["0"], True)
+		self.pos = ConstExpr(["0"], True)
+		self.size_table: dict[str, BinX] = dict()
+		self.pos_table: dict[str, ConstExpr] = dict()
+		for i in data:
+			if i.name == None: raise NameError("Variable names must be complete.")
+			if i.name in self.size_table: raise NameError("Variable names must be non repeating.")
+			self.size_table[i.name] = i
+			self.pos_table[i.name] = self.size
+			self.size = self.size + i.size
+		self.ret = ret
+		# Helps make sure that whatever we try to return does not overwrite any if spaces
+		for i in ret: self.size = self.size + i
+		self.stack: list[ConstExpr] = []
+		self.code: list[str|ConstExpr] = []
+		self.comparisons: list[tuple[ConstExpr, ConstExpr]] = []
+	
+	def start_while(self, name: str) -> None:
+		self.add("while(")
+		self.copy(name)
+		self.goup(self.size)
+		self.add("boolbinx(")
+		self.add(self.size_table[name])
+		self.add(")")
+		self.add(";")
+		self.godown()
+		self.stack.append(self.size)
+		self.size = self.size + ConstExpr("2")
+
+	def end_while(self) -> None:
+		self.add(")")
+		self.pos = self.stack.pop()
+		self.godown()
+	
+	def start_if(self, name: str) -> None:
+		self.copy(name)
+		self.goup(self.size)
+		self.add("boolbinx(")
+		self.add(self.size_table[name])
+		self.add(")ifel(")
+		self.stack.append(self.size)
+		self.size = self.size + ConstExpr("2")
+		self.godown()
+
+	def continue_if(self) -> None:
+		self.goup(self.stack[-1])
+		self.add(";")
+		self.godown()
+
+	def end_if(self) -> None:
+		self.goup(self.stack.pop())
+		self.add(")")
+		self.godown()
+	
+	def start_call(self, data: list[BinX]) -> None:
+		start = self.size
+		for i in data:
+			if i.name != None: self.copy(i.name)
+			self.size += i.size
+		self.size = start
+		self.goup(self.size)
+	
+	def end_call(self, data: list[BinX]) -> None:
+		self.godown()
+		for i in data:
+			if i.name != None:
+				if i.name in self.size_table:
+					# TODO size comparisons
+					self.comparisons.append((i.size, self.size_table[i.name]))
+					# if self.size_table[i.name] != i.size: raise TypeError("Can't overwrite same variable with different size.")
+					self.clear_name(i.name)
+					self.replace(i.name)
+				else:
+					self.pos_table[i.name] = self.size
+					self.size_table[i.name] = i.size
+			else: self.clear_pos(self.size, i.size)
+			self.size += i.size
+
+	def copy(self, name: str) -> None:
+		dif = self.size - self.pos_table[name] - ConstExpr(["-1"])
+		self.goup(self.pos_table[name])
+		self.add("copybinx(")
+		self.add(self.size_table[name])
+		self.add(";")
+		self.add(dif)
+		self.add(")")
+		# self.size = self.size + self.size_table[name]
+		self.godown()
+
+	def moveup(self, name: str) -> None:
+		dif = self.size - self.pos_table[name] - ConstExpr(["-1"])
+		self.goup(self.pos_table[name])
+		self.add("upbinx(")
+		self.add(self.size_table[name])
+		self.add(";")
+		self.add(dif)
+		self.add(")")
+		self.pos_table[name] = self.size
+		self.size = self.size + self.size_table[name]
+		self.godown()
+
+	def movedown(self, size: ConstExpr) -> None:
+		dif = self.size - ConstExpr(["-1"])
+		self.goup(self.size)
+		self.add("downbinx(")
+		self.add(size)
+		self.add(";")
+		self.add(dif)
+		self.add(")")
+		self.godown()
+	
+	def replace(self, name: str) -> None:
+		dif = self.size - self.pos_table[name] - ConstExpr(["-1"])
+		self.goup(self.size)
+		self.add("downbinx(")
+		self.add(self.size_table[name])
+		self.add(";")
+		self.add(dif)
+		self.add(")")
+		self.godown()
+
+	def fuck(self, data: list[str]) -> None:
+		if len(data) == 0:
+			self.clear_pos(ConstExpr("0"), self.size)
+			return
+		if len(data) != len(self.ret): raise TypeError("Return types do not match indicated")
+		size = ConstExpr("0")
+		start = self.size
+		for i in range(len(data)):
+			if data[i] != None: 
+				self.comparisons.append((self.size_table[data[i]], self.ret[i]))
+				self.moveup(data[i])
+			size = size + self.ret[i]
+			self.size = self.size + self.ret[i]
+		self.size = start
+		self.clear_pos(ConstExpr("0"), self.size)
+		self.movedown(size)
+		self.size = size
+
+	def clear_name(self, name: str) -> None:
+		self.goup(self.pos_table[name])
+		self.add(self.size_table[name])
+		self.add("repeat(->)")
+		self.add(self.size_table[name])
+		self.add("repeat(<)")
+		self.godown()
+	
+	def clear_pos(self, pos: ConstExpr, size: ConstExpr) -> None:
+		self.goup(pos)
+		self.add(size)
+		self.add("repeat(->)")
+		self.add(size)
+		self.add("repeat(<)")
+		self.godown()
+
+	def goup(self, pos: ConstExpr) -> None:
+		self.add(pos)
+		self.add("repeat(>)")
+		self.pos = pos
+	
+	def godown(self) -> None:
+		self.add(self.pos)
+		self.add("repeat(<)")
+	
+	def add(self, data: str|ConstExpr):
+		self.code.append(data)
+
+class MacroFuck:
+	pass
+
+class ConstOp:
+	# repeat, ifel, const_def
+	pass
+
+class Macro:
+	pass
+
+class MacroInvocation:
+	def __init__(self, macro: Macro, ) -> None:
+		pass
 
 if __name__ == "__main__":
 	with open("test.vk", "r") as f:
