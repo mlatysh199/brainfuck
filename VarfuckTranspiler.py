@@ -1,8 +1,8 @@
 from enum import Enum
 import EBNF
 import VirtualParser as VP
-from math import *
-import numbers
+from numbers import Number
+from typing import Union, Any
 
 # Token types
 class TokenType(Enum):
@@ -110,6 +110,7 @@ class Lexer(VP.BaseLexer):
 	def set_position(self, pos: int) -> None:
 		self.pos = pos
 
+"""
 # Manages variables
 class BinX:
 	def __init__(self, x, offset, protected=False) -> None:
@@ -305,10 +306,11 @@ class BigMacro:
 	
 	def execute_mac(self, code):
 		pass
-
+"""
+		
 class Parser:
 	terminal_dict = {
-		VP.Token(EBNF.TokenType.Terminal, "return") : VP.Token(TokenType.Command, "return"),
+		VP.Token(EBNF.TokenType.Terminal, "fuck") : VP.Token(TokenType.Command, "fuck"),
 		VP.Token(EBNF.TokenType.Terminal, "=") : VP.Token(TokenType.Command, "="),
 		VP.Token(EBNF.TokenType.Terminal, "(") : VP.Token(TokenType.Parenthesis, "("),
 		VP.Token(EBNF.TokenType.Terminal, ")") : VP.Token(TokenType.Parenthesis, ")"),	
@@ -328,7 +330,7 @@ class Parser:
 		"u_const_op" : TokenType.Operator
 	}
 	terminal_set = {
-		VP.Token(TokenType.Command, "return"),
+		VP.Token(TokenType.Command, "fuck"),
 		VP.Token(TokenType.Command, "="),
 		TokenType.Bracket,
 		TokenType.Brace,
@@ -353,23 +355,40 @@ class Parser:
 		if len(result) == 0 or type(result[0]) != VP.ASTNode or result[0].rule != "grammar": raise SyntaxError("Not a grammar based AST.") # TODO replace with correct error
 		return result[0]
 
-class Processor:
+class ASTNode:
+	def __init__(self, name: str, data: list[Union["ASTNode",VP.Token]]) -> None:
+		self.name = name
+		self.data = data
+
+class Cleaner:
 	def __init__(self, tree: VP.ASTNode) -> None:
 		if tree.rule != "grammar": raise SyntaxError("Not a grammar based AST.") # TODO replace with correct error
 		self.tree = tree
 	
-	def correct_const_expr(self, node: VP.ASTNode) -> VP.ASTNode:
-		pass
+	def __correct_const_expr(self, node: VP.ASTNode|VP.Token) -> ASTNode|VP.Token:
+		if type(node) == VP.Token: return node
+		if node.rule == "const_expr_p":
+			if len(node.children) == 0: return ASTNode("temp", [])
+			return ASTNode("temp", [self.__correct_const_expr(i) for i in node.children])
+		back = self.__correct_const_expr(node.children[-1]).data
+		if len(back) == 0: return ASTNode("const_expr", [self.__correct_const_expr(i) for i in node.children[:-1]])
+		# Not as dynamic as I would like it to be, but we got to start hardcoding in some parts at some point
+		return ASTNode("const_expr", [ASTNode("const_expr", [self.__correct_const_expr(i) for i in node.children[:-1]]), back[0], back[1]])
+			
+	def __clean(self, node: VP.ASTNode|VP.Token) -> ASTNode|VP.Token:
+		if type(node) == VP.Token: return node
+		if node.rule == "const_expr": return self.__correct_const_expr(node)
+		return ASTNode(node.rule, [self.__clean(i) for i in node.children])
 
-	def process(self) -> VP.ASTNode:
-		pass
+	def clean(self) -> ASTNode:
+		return self.__clean(self.tree)
 
 class Context:
 	def __init__(self, parent: "Context" = None, const_symbol_table: dict[str, "ConstExpr"] = dict()) -> None:
 		self.const_symbol_table = const_symbol_table
 		self.parent = parent
 	
-	def get_const(self, name: str) -> "ConstExpr"|None:
+	def get_const(self, name: str) -> Union["ConstExpr", None]:
 		if name in self.const_symbol_table: return self.const_symbol_table[name]
 		if self.parent == None: return None
 		return self.parent.get_const(name)
@@ -381,13 +400,32 @@ class Context:
 class ConstRef:
 	def __init__(self, name: str) -> None:
 		self.name = name
+	
+	def __str__(self) -> str:
+		return self.name
 
 class ConstExpr:
 	# math expressions
 	def __init__(self, data: list[str|ConstRef], force_nnint = False) -> None:
 		self.refs = {ref.name for ref in data if type(ref) == ConstRef}
-		self.data: list[str|ConstRef] = [str(eval(" ".join(self.data)))] if not len(self.refs) else data
+		import math
+		self.data: list[str|ConstRef] = [str(eval(" ".join(data)))] if not len(self.refs) else data
 		self.force_nnint = force_nnint
+		self.done = not len(self.refs)
+	
+	def __builder(base: ASTNode) -> list[str|ConstRef]:
+		data = base.data
+		# Once again, boring hardcoding
+		if type(data[0]) == VP.Token:
+			if data[0].type == TokenType.Number: return [data[0].value]
+			if data[0].type == TokenType.Operator: return [data[0].value] + ConstExpr.__builder(data[1])
+			if len(data) == 1: return [ConstRef(data[0].value)]
+			return ["math.", data[0].value, "("] + ConstExpr.__builder(data[1]) + [")"]
+		if len(data) == 1: return ["("] + ConstExpr.__builder(data[0]) + [")"]
+		return ConstExpr.__builder(data[0]) + [data[1].value] + ConstExpr.__builder(data[2])
+
+	def builder(base: ASTNode) -> "ConstExpr":
+		return ConstExpr(ConstExpr.__builder(base))
 
 	def replace(self, name: str, expr: "ConstExpr") -> "ConstExpr":
 		if name not in self.refs: return ConstExpr(self.data.copy(), self.force_nnint)
@@ -429,11 +467,12 @@ class BinXManager:
 			self.size_table[i.name] = i
 			self.pos_table[i.name] = self.size
 			self.size = self.size + i.size
+		self.params = data
 		self.ret = ret
 		# Helps make sure that whatever we try to return does not overwrite any if spaces
 		for i in ret: self.size = self.size + i
 		self.stack: list[ConstExpr] = []
-		self.code: list[str|ConstExpr] = []
+		self.code: list[str|ConstExpr|MacroInvocation] = []
 		self.comparisons: list[tuple[ConstExpr, ConstExpr]] = []
 	
 	def start_while(self, name: str) -> None:
@@ -446,7 +485,7 @@ class BinXManager:
 		self.add(";")
 		self.godown()
 		self.stack.append(self.size)
-		self.size = self.size + ConstExpr("2")
+		self.size = self.size + ConstExpr("2") + self.size_table[name]
 
 	def end_while(self) -> None:
 		self.add(")")
@@ -473,32 +512,42 @@ class BinXManager:
 		self.add(")")
 		self.godown()
 	
-	def start_call(self, data: list[BinX]) -> None:
+	def start_call(self, data: list[str|None], params: list[ConstExpr]) -> None:
 		start = self.size
-		for i in data:
-			if i.name != None: self.copy(i.name)
-			self.size += i.size
+		if len(data) != len(params): raise TypeError(f"Expected {len(params)} parameters but got {len(data)}.")
+		for i in range(len(data)):
+			if data[i] != None:
+				if data[i] not in self.pos_table: raise NameError(f"No such variable defined as {data[i]}.")
+				self.comparisons.append((params[i], self.size_table[data[i]]))
+				self.copy(data[i])
+			self.size = self.size + params[i]
 		self.size = start
 		self.goup(self.size)
 	
-	def end_call(self, data: list[BinX]) -> None:
+	def end_call(self, data: list[str|None], ret: list[ConstExpr]) -> None:
 		self.godown()
-		for i in data:
-			if i.name != None:
-				if i.name in self.size_table:
-					# TODO size comparisons
-					self.comparisons.append((i.size, self.size_table[i.name]))
-					# if self.size_table[i.name] != i.size: raise TypeError("Can't overwrite same variable with different size.")
-					self.clear_name(i.name)
-					self.replace(i.name)
+		if len(data) != len(ret): raise TypeError(f"Expected {len(ret)} return parameters but got {len(data)}.")
+		for i in range(len(ret)):
+			if data[i] != None:
+				if data[i] in self.size_table:
+					self.comparisons.append((ret[i], self.size_table[data[i]]))
+					self.clear_name(data[i])
+					self.replace(data[i])
 				else:
-					self.pos_table[i.name] = self.size
-					self.size_table[i.name] = i.size
-			else: self.clear_pos(self.size, i.size)
-			self.size += i.size
+					self.pos_table[data[i]] = self.size
+					self.size_table[data[i]] = ret[i]
+			else: self.clear_pos(self.size, ret[i])
+			self.size = self.size + ret[i]
+	
+	def start_repeat(self, num: ConstExpr) -> None:
+		self.add(num)
+		self.add("repeat(")
+	
+	def end_repeat(self) -> None:
+		self.add(")")
 
 	def copy(self, name: str) -> None:
-		dif = self.size - self.pos_table[name] - ConstExpr(["-1"])
+		dif = self.size - self.pos_table[name] - ConstExpr(["1"])
 		self.goup(self.pos_table[name])
 		self.add("copybinx(")
 		self.add(self.size_table[name])
@@ -509,7 +558,7 @@ class BinXManager:
 		self.godown()
 
 	def moveup(self, name: str) -> None:
-		dif = self.size - self.pos_table[name] - ConstExpr(["-1"])
+		dif = self.size - self.pos_table[name] - ConstExpr(["1"])
 		self.goup(self.pos_table[name])
 		self.add("upbinx(")
 		self.add(self.size_table[name])
@@ -521,7 +570,7 @@ class BinXManager:
 		self.godown()
 
 	def movedown(self, size: ConstExpr) -> None:
-		dif = self.size - ConstExpr(["-1"])
+		dif = self.size - ConstExpr(["1"])
 		self.goup(self.size)
 		self.add("downbinx(")
 		self.add(size)
@@ -531,7 +580,7 @@ class BinXManager:
 		self.godown()
 	
 	def replace(self, name: str) -> None:
-		dif = self.size - self.pos_table[name] - ConstExpr(["-1"])
+		dif = self.size - self.pos_table[name] - ConstExpr(["1"])
 		self.goup(self.size)
 		self.add("downbinx(")
 		self.add(self.size_table[name])
@@ -561,7 +610,7 @@ class BinXManager:
 	def clear_name(self, name: str) -> None:
 		self.goup(self.pos_table[name])
 		self.add(self.size_table[name])
-		self.add("repeat(->)")
+		self.add("repeat([-]>)")
 		self.add(self.size_table[name])
 		self.add("repeat(<)")
 		self.godown()
@@ -569,7 +618,7 @@ class BinXManager:
 	def clear_pos(self, pos: ConstExpr, size: ConstExpr) -> None:
 		self.goup(pos)
 		self.add(size)
-		self.add("repeat(->)")
+		self.add("repeat([-]>)")
 		self.add(size)
 		self.add("repeat(<)")
 		self.godown()
@@ -583,24 +632,203 @@ class BinXManager:
 		self.add(self.pos)
 		self.add("repeat(<)")
 	
-	def add(self, data: str|ConstExpr):
+	def add(self, data: Union[str,ConstExpr,"MacroInvocation"]):
 		self.code.append(data)
-
-class MacroFuck:
-	pass
 
 class ConstOp:
 	# repeat, ifel, const_def
 	pass
 
 class Macro:
-	pass
+	def __init__(self, name: str, c_params: list[tuple[str, Any]], params: list[BinX], ret: list[ConstExpr]) -> None:
+		self.name = name
+		self.params = c_params
+		self.data = BinXManager(params, ret)
+	
+	def build(name: str, c_params: list[tuple[str, Any]], params: list[BinX], ret: list[ConstExpr], include: list[ConstExpr]|None = None) -> "Macro":
+		base = Macro(name, c_params, params, ret)
+		base.data.add(name)
+		base.data.add("(")
+		if include != None:
+			first = True
+			for i in include:
+				i.force_nnint = True
+				if first: first = False
+				else: base.data.add(";")
+				base.data.add(i)
+		base.data.add(")")
+		return base
+	
+	def invoke(self, params: list[ConstExpr]) -> str:
+		for i in range(len(params)):
+			if not params[i].done: raise NameError(f"The {i}th parameter hasn't been completed.")
+		code = self.data.code.copy()
+		comp = self.data.comparisons.copy()
+		for i in range(len(code)):
+			# if type(code[j]) == String...
+			if type(code[i]) == ConstExpr:
+				for j in range(len(params)):
+					if type(code[i]) == ConstExpr: code[i] = code[i].replace(self.params[j][0], params[j])
+			if type(code[i]) == MacroInvocation: code[i].prepare([(self.params[j][0], params[j]) for j in range(len(params))])
+		for i in range(len(params)):
+			for j in range(len(comp)): comp[j] = comp[j][0].replace(self.params[i][0], params[i]), comp[j][1].replace(self.params[i][0], params[i])
+		for i in comp:
+			if str(i[0]) != str(i[1]): raise TypeError(f"Expected expressions to be the same but got {i[0]} and {i[1]}.")
+		return "".join(map(str, code))
+
+
 
 class MacroInvocation:
-	def __init__(self, macro: Macro, ) -> None:
-		pass
+	def __init__(self, macro: Macro, params: list[ConstExpr]) -> None:
+		if len(params) != len(macro.params): raise TypeError(f"The macro {macro.name} takes {len(macro.params)} positional arguments but {len(params)} were provided.")
+		for i in range(len(params)):
+			if type(params[i]) != macro.params[i][1]: raise TypeError(f"The macro {macro.name} in argument position {i} has type {macro.params[i][1]} but the type {type(params[i])} was provided.")
+		self.macro = macro
+		self.params = params
+		self.current = None
+	
+	def prepare(self, params: list[tuple[str, ConstExpr]]) -> None:
+		self.current = self.params.copy()
+		for i in range(len(self.current)):
+			for j in range(len(params)): self.current[i] = self.current[i].replace(params[j][0], params[j][1])
+	
+	def __str__(self) -> str:
+		result = self.macro.invoke(self.current)
+		self.current = None
+		return result
+
+	def test_params(self) -> list[ConstExpr]:
+		p = [i.size for i in self.macro.data.params.copy()]
+		for i in range(len(p)):
+			for j in range(len(self.params)):
+				p[i] = p[i].replace(self.macro.params[j][0], self.params[j])
+		return p
+
+	def test_ret(self) -> list[ConstExpr]:
+		ret = self.macro.data.ret.copy()
+		for i in range(len(ret)):
+			for j in range(len(self.params)):
+				ret[i] = ret[i].replace(self.macro.params[j][0], self.params[j])
+		return ret
+
+class Processor:
+	inbuilt_macros = {
+		"implant" : Macro.build(
+			"implant",
+			[("x", ConstExpr), ("v", ConstExpr)],
+			[],
+			[ConstExpr([ConstRef("x")])],
+			[ConstExpr([ConstRef("x")]), ConstExpr([ConstRef("v")])]
+			),
+		"printbinx" : Macro.build(
+			"printbinx",
+			[("x", ConstExpr)],
+			[BinX("binx", ConstExpr([ConstRef("x")]))],
+			[],
+			[ConstExpr([ConstRef("x")])]
+			),
+	}
+
+	def __init__(self, tree: VP.ASTNode) -> None:
+		self.tree = Cleaner(tree).clean()
+		self.macros: dict[str, Macro] = dict()
+		self.consts: dict[str, Any] = dict()
+		self.local_consts: dict[str, Any] = dict()
+	
+	def __const_expr(self, node: ASTNode) -> ConstExpr:
+		result = ConstExpr.builder(node)
+		for i, j in self.local_consts.items(): result = result.replace(i, j)
+		for i, j in self.consts.items(): result = result.replace(i, j)
+		return result
+
+	def __const_def(self, node: ASTNode) -> tuple[str, Any]:
+		if node.data[0].data[0].value == "num": return node.data[1].value, self.__const_expr(node.data[2])
+		raise TypeError(f"Unkown type {node.data[0].data[0].value}.")
+	
+	def __const_param_struct(self, node: ASTNode) -> list[tuple[str, Any]]:
+		data = []
+		for i in range(0, len(node.data), 3):
+			if node.data[i].data[0].value == "num": data.append((node.data[i + 1].value, ConstExpr))
+			else: raise TypeError(f"Unkown type {node.data[i].data[0].value}.")
+		return data
+	
+	def __const_struct(self, node: ASTNode) -> list[ConstExpr]:
+		data = []
+		for i in range(0, len(node.data), 2): data.append(self.__const_expr(node.data[i]))
+		return data
+
+	def __param_struct(self, node: ASTNode) -> list[BinX]:
+		data = []
+		for i in range(0, len(node.data), 3): data.append(BinX(node.data[i + 1], self.__const_expr(node.data[i])))
+		return data
+
+	def __var_struct(self, node: ASTNode) -> list[str|None]:
+		data = []
+		pos = 0
+		while pos < len(node.data):
+			if node.data[pos].type == TokenType.Separator: data.append(None)
+			else:
+				data.append(node.data[pos].value)
+				pos += 1
+			pos += 1
+		return data
+	
+	def __call(self, node: ASTNode) -> tuple[MacroInvocation, list[str|None], list[str|None]]:
+		name = node.data[1].value
+		if name in self.macros: mi = MacroInvocation(self.macros[node.data[1].value], self.__const_struct(node.data[0]))
+		elif name in Processor.inbuilt_macros: mi = MacroInvocation(Processor.inbuilt_macros[node.data[1].value], self.__const_struct(node.data[0]))
+		else: raise NameError(f"The macro {name} is undefined.")
+		return mi, self.__var_struct(node.data[2]), self.__var_struct(node.data[3])
+	
+	def __macro_def(self, node: ASTNode) -> tuple[str, Macro]:
+		name = node.data[1].value
+		self.local_consts = dict()
+		stack = []
+		mac = Macro(name, self.__const_param_struct(node.data[0]), self.__param_struct(node.data[3]), self.__const_struct(node.data[2]))
+		for i in node.data[4].data:
+			stmt: ASTNode = i.data[0]
+			if stmt.name == "const_def":
+				cdef = self.__const_def(stmt)
+				self.local_consts[cdef[0]] = cdef[1]
+			elif stmt.name == "call":
+				invc = self.__call(stmt)
+				mac.data.start_call(invc[2], invc[0].test_params())
+				mac.data.add(invc[0])
+				mac.data.end_call(invc[1], invc[0].test_ret())
+			elif stmt.name == "return":
+				pass
+		return name, mac	
+	
+	def process(self) -> None:
+		for i in self.tree.data[:-1]:
+			if i.name == "const_def":
+				cdef = self.__const_def(i)
+				self.consts[cdef[0]] = cdef[1]
+			elif i.name == "macro_def":
+				mdef = self.__macro_def(i)
+				self.macros[mdef[0]] = mdef[1]
+			else: raise NameError(f"{i.name}???")
+		self.start = self.__call(self.tree.data[-1])[0]
+
+	def build(self) -> str:
+		self.start.prepare([])
+		return str(self.start)
+
+# TODO temp
+def show_AST(node: ASTNode|VP.Token, level = 0):
+	print(level*"\t", end="")
+	if type(node) == VP.Token: print(node.type, repr(str(node.value)))
+	else:
+		print("> ", node.name)
+		for i in node.data:
+			show_AST(i, level + 1)
 
 if __name__ == "__main__":
 	with open("test.vk", "r") as f:
 		p = Parser(f.read())
-		VP.show_AST(p.parse())
+	tree = p.parse()
+	VP.show_AST(tree)
+	show_AST(Cleaner(tree).clean())
+	proc = Processor(tree)
+	proc.process()
+	print(proc.build())

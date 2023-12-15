@@ -93,7 +93,7 @@ class bcolors:
 
 print_level = [0]
 def debug(func):
-	def printer(self) -> list[ASTNode|Token]|None:
+	def printer(self: "Matcher") -> list[ASTNode|Token]|None:
 		print(bcolors.OKCYAN, "|  "*print_level[0], ">?", self.__class__.__name__)
 		print_level[0] += 1
 		result = func(self)
@@ -104,10 +104,21 @@ def debug(func):
 	return printer
 
 def debug_print(data):
-	print(bcolors.ENDC, "|  "*print_level[0], ">?", data)
+	print(bcolors.ENDC, "|  "*print_level[0], ">:", data)
 # DEBUG----------------
 
+def call_index(func):
+	def call(self: Matcher) -> list[ASTNode|Token]|None:
+		self.call_index += 1
+		result = func(self)
+		self.call_index -= 1
+		return result
+	return call
+
 class Matcher:
+	def __init__(self) -> None:
+		self.call_index = -1
+
 	def start(self) -> None:
 		pass
 
@@ -117,6 +128,7 @@ class Matcher:
 
 class EmptyMatcher(Matcher):
 	def __init__(self) -> None:
+		super().__init__()
 		self.ready = []
 
 	def start(self) -> None:
@@ -132,6 +144,7 @@ class EmptyMatcher(Matcher):
 
 class LiteralMatcher(Matcher):
 	def __init__(self, lexer: BaseLexer, data: Token|Enum, forget: bool = False) -> None:
+		super().__init__()
 		self.data = data
 		self.positions = []
 		self.forget = forget
@@ -158,71 +171,86 @@ class LiteralMatcher(Matcher):
 
 class ConcatMatcher(Matcher):
 	def __init__(self, this: Matcher, next: Union["ConcatMatcher", None]) -> None:
+		super().__init__()
 		self.this = this
 		self.next = next
-		self.level = 0
-		self.built = []
+		self.level: list[int] = []
+		self.built: list[list] = []
 
 	def start(self) -> None:
-		self.level += 1
+		if self.call_index == len(self.level) - 1:
+			self.level.append(0)
+			self.built.append([])
+		self.level[self.call_index + 1] += 1
 		self.this.start()
 
+	@call_index
 	@debug
 	def next_match(self) -> list[ASTNode|Token]|None:
-		if self.level != len(self.built):
+		if not self.level: return None
+		if self.level[self.call_index] != len(self.built[self.call_index]):
 			result = self.this.next_match()
 			if result == None:
-				self.level -= 1
+				self.level[self.call_index] -= 1
+				if self.level[-1] == 0:
+					self.level.pop()
+					self.built.pop()
 				return None
-			self.built.append(result)
-			if self.next == None:
-				return self.built[-1]
+			self.built[self.call_index].append(result)
+			if self.next == None: return self.built[self.call_index][-1]
 			self.next.start()
+		cindex = self.level[self.call_index] - 1
 		result = None
-		cindex = len(self.built) - 1
 		while True:
 			if self.next != None: result = self.next.next_match()
 			if result == None:
 				result = self.this.next_match()
 				if result == None:
-					self.level -= 1
-					self.built.pop()
+					self.level[self.call_index] -= 1
+					self.built[self.call_index].pop()
+					if self.level[-1] == 0:
+						self.level.pop()
+						self.built.pop()
 					return None
-				self.built[cindex] = result
-				if self.next == None: return self.built[cindex]
+				self.built[self.call_index][cindex] = result
+				if self.next == None: return self.built[self.call_index][cindex] 
 				self.next.start()
 				result = None
-			else: return self.built[cindex] + result
+			else: return self.built[self.call_index][cindex]  + result
 
 class AlterMatcher(Matcher):
 	def __init__(self, this: Matcher, next: Union["AlterMatcher", None]) -> None:
+		super().__init__()
 		self.this = this
 		self.next = next
-		self.level = 0
-		self.selected = []
+		self.selected: list[list] = []
 
 	def start(self) -> None:
-		self.level += 1
-		self.selected.append(True)
+		if self.call_index == len(self.selected) - 1: self.selected.append([])
+		self.selected[self.call_index + 1].append(True)
 		self.this.start()
 	
+	@call_index
 	@debug
 	def next_match(self) -> list[ASTNode|Token]|None:
-		if self.selected[-1]:
+		if self.selected[self.call_index][-1]:
 			result = self.this.next_match()
 			if result != None: return result
 			if self.next == None:
-				self.level -= 1
-				self.selected.pop()
+				self.selected[self.call_index].pop()
+				if not len(self.selected[-1]): self.selected.pop()
 				return None
-			self.selected[-1] = False
+			self.selected[self.call_index][-1] = False
 			self.next.start()
 		result = self.next.next_match()
-		if result == None: self.level -= 1
+		if result == None:
+			self.selected[self.call_index].pop()
+			if not len(self.selected[-1]): self.selected.pop()
 		return result
 
 class RuleMatcher(Matcher):
 	def __init__(self, rule_name: str, matcher: "CountMatcher", forget: bool = False) -> None:
+		super().__init__()
 		self.rule_name = rule_name
 		self.matcher = matcher
 		self.forget = forget
@@ -240,27 +268,34 @@ class RuleMatcher(Matcher):
 
 class CountMatcher(Matcher):
 	def __init__(self, matcher: Matcher, count_type: CountType) -> None:
+		super().__init__()
 		self.matcher = matcher
 		self.count_type = count_type
-		self.data: list[list[ASTNode|Token]] = []
-		self.level = 0
+		self.data: list[list[list[ASTNode|Token]]] = []
+		self.level = []
 	
 	def start(self) -> None:
-		self.level += 1
+		if self.call_index == len(self.level) - 1:
+			self.level.append(0)
+			self.data.append([])
+		self.level[self.call_index + 1] += 1
 	
+	@call_index
 	@debug
 	def next_match(self) -> list[ASTNode|Token]|None:
 		debug_print(f"type = {self.count_type}")
-		if len(self.data) != self.level:
+		if len(self.data[self.call_index]) != self.level[self.call_index]:
 			debug_print("Starting count...")
 			self.matcher.start()
 			result = self.matcher.next_match()
 			build = []
 			if result == None:
 				if self.count_type == CountType.One or self.count_type == CountType.OneOrMany:
-					self.level -= 1
+					self.level[self.call_index] -= 1
+					if self.level[-1] == 0:
+						self.level.pop()
+						self.data.pop()
 					return None
-				build = []
 			else:
 				if self.count_type == CountType.One or self.count_type == CountType.ZeroOrOne: build.append(result)
 				else:
@@ -268,14 +303,17 @@ class CountMatcher(Matcher):
 						build.append(result)
 						self.matcher.start()
 						result = self.matcher.next_match()
-			self.data.append(build)
+			self.data[self.call_index].append(build)
 			result = []
 			for i in build: result += i
 			return result
-		build = self.data[-1]
+		build = self.data[self.call_index][-1]
 		if not len(build):
-			self.level -= 1
-			self.data.pop()
+			self.level[self.call_index] -= 1
+			self.data[self.call_index].pop()
+			if not self.level[-1]:
+				self.level.pop()
+				self.data.pop()
 			return None
 		build.pop()
 		result = self.matcher.next_match()
@@ -291,13 +329,17 @@ class CountMatcher(Matcher):
 			for i in build: result += i
 			return result
 		if self.count_type == CountType.One or self.count_type == CountType.OneOrMany:
-			self.level -= 1
-			self.data.pop()
+			self.level[self.call_index] -= 1
+			self.data[self.call_index].pop()
+			if not self.level[-1]:
+				self.level.pop()
+				self.data.pop()
 			return None
 		return []
 
 class GrammarMatcher(Matcher):
 	def __init__(self, matcher: ConcatMatcher) -> None:
+		super().__init__()
 		self.matcher = matcher
 	
 	def start(self) -> None:
@@ -397,7 +439,7 @@ def show_AST(node: ASTNode|Token, level = 0):
 			show_AST(i, level + 1)
 
 
-def show_IF(data: IntermediateForm, level = 0, showed = []) -> None:
+def show_IF(data: IntermediateForm, level = 0, showed: list[IntermediateForm] = []) -> None:
 	if data in showed:
 		if type(data) == RuleRef: 
 			print(level*"  ", end="")
