@@ -2,8 +2,14 @@ num wikir = 15;
 
 {num tangur} timir {} {} [
     num mangar = tangur + wikir >> 1;
-    {8, 53} implant {a} {};
-    {8} printbinx {} {a};
+    {8, 10} implant {a} {};
+    {8, 1} implant {b} {};
+    a [
+        {8} printintbinx {} {a};
+        {} endl {} {};
+        {8} subbinx {a} {a, b}
+    ]
+    {} endl {} {};
 ]
 
 {wikir} timir {} {}

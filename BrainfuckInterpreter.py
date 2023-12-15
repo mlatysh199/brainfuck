@@ -75,4 +75,4 @@ class Interpreter:
 		return result
 
 if __name__ == "__main__":
-	Interpreter("0repeat(>)implant(8;53)0repeat(<)0repeat(>)copybinx(8;7)0repeat(<)8repeat(>)printbinx(8)8repeat(<)").run(True)
+	pass

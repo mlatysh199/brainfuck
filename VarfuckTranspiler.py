@@ -383,20 +383,6 @@ class Cleaner:
 	def clean(self) -> ASTNode:
 		return self.__clean(self.tree)
 
-class Context:
-	def __init__(self, parent: "Context" = None, const_symbol_table: dict[str, "ConstExpr"] = dict()) -> None:
-		self.const_symbol_table = const_symbol_table
-		self.parent = parent
-	
-	def get_const(self, name: str) -> Union["ConstExpr", None]:
-		if name in self.const_symbol_table: return self.const_symbol_table[name]
-		if self.parent == None: return None
-		return self.parent.get_const(name)
-
-	def add_const(self, name: str, data: "ConstExpr") -> None:
-		if self.get_const(name) != None: raise NameError(f"{name} is already a defined constant.")
-		self.const_symbol_table[name] = data
-
 class ConstRef:
 	def __init__(self, name: str) -> None:
 		self.name = name
@@ -727,6 +713,69 @@ class Processor:
 			[],
 			[ConstExpr([ConstRef("x")])]
 			),
+		"kill" : Macro.build(
+			"kill",
+			[],
+			[],
+			[],
+			[]
+			),
+		"endl" : Macro.build(
+			"endl",
+			[],
+			[],
+			[],
+			[]
+			),
+		"printintbinx" : Macro.build(
+			"printintbinx",
+			[("x", ConstExpr)],
+			[BinX("binx", ConstExpr([ConstRef("x")]))],
+			[],
+			[ConstExpr([ConstRef("x")])]
+			),
+		"addbinx" : Macro.build(
+			"addbinx",
+			[("x", ConstExpr)],
+			[BinX("a", ConstExpr([ConstRef("x")])), BinX("b", ConstExpr([ConstRef("x")]))],
+			[ConstExpr([ConstRef("x")])],
+			[ConstExpr([ConstRef("x")])]
+			),
+		"subbinx" : Macro.build(
+			"subbinx",
+			[("x", ConstExpr)],
+			[BinX("a", ConstExpr([ConstRef("x")])), BinX("b", ConstExpr([ConstRef("x")]))],
+			[ConstExpr([ConstRef("x")])],
+			[ConstExpr([ConstRef("x")])]
+			),
+		"multbinx" : Macro.build(
+			"multbinx",
+			[("x", ConstExpr)],
+			[BinX("a", ConstExpr([ConstRef("x")])), BinX("b", ConstExpr([ConstRef("x")]))],
+			[ConstExpr([ConstRef("x")])],
+			[ConstExpr([ConstRef("x")])]
+			),
+		"divbinx" : Macro.build(
+			"divbinx",
+			[("x", ConstExpr)],
+			[BinX("a", ConstExpr([ConstRef("x")])), BinX("b", ConstExpr([ConstRef("x")]))],
+			[ConstExpr([ConstRef("x")])],
+			[ConstExpr([ConstRef("x")])]
+			),
+		"lshiftbinx" : Macro.build(
+			"lshiftbinx",
+			[("x", ConstExpr)],
+			[BinX("binx", ConstExpr([ConstRef("x")]))],
+			[],
+			[ConstExpr([ConstRef("x")])]
+			),
+		"rshiftbinx" : Macro.build(
+			"rshitbinx",
+			[("x", ConstExpr)],
+			[BinX("binx", ConstExpr([ConstRef("x")]))],
+			[],
+			[ConstExpr([ConstRef("x")])]
+			),
 	}
 
 	def __init__(self, tree: VP.ASTNode) -> None:
@@ -783,20 +832,51 @@ class Processor:
 	def __macro_def(self, node: ASTNode) -> tuple[str, Macro]:
 		name = node.data[1].value
 		self.local_consts = dict()
-		stack = []
 		mac = Macro(name, self.__const_param_struct(node.data[0]), self.__param_struct(node.data[3]), self.__const_struct(node.data[2]))
-		for i in node.data[4].data:
-			stmt: ASTNode = i.data[0]
-			if stmt.name == "const_def":
-				cdef = self.__const_def(stmt)
-				self.local_consts[cdef[0]] = cdef[1]
-			elif stmt.name == "call":
-				invc = self.__call(stmt)
-				mac.data.start_call(invc[2], invc[0].test_params())
-				mac.data.add(invc[0])
-				mac.data.end_call(invc[1], invc[0].test_ret())
-			elif stmt.name == "return":
-				pass
+		def process_block(data: ASTNode) -> None:
+			for i in data.data:
+				stmt: ASTNode = i.data[0]
+				if stmt.name == "const_def":
+					cdef = self.__const_def(stmt)
+					self.local_consts[cdef[0]] = cdef[1]
+				elif stmt.name == "call":
+					invc = self.__call(stmt)
+					mac.data.start_call(invc[2], invc[0].test_params())
+					mac.data.add(invc[0])
+					mac.data.end_call(invc[1], invc[0].test_ret())
+				elif stmt.name == "return":
+					s = []
+					if len(stmt.data) == 1: s = self.__var_struct(stmt.data[0])
+					mac.data.fuck(s)
+				elif stmt.name == "ifel":
+					expr = self.__const_expr(stmt.data[0])
+					if len(expr.data) == 1 and type(expr.data[0]) == ConstRef and expr.data[0].name in mac.data.pos_table:
+						mac.data.start_if(expr.data[0].name)
+						process_block(stmt.data[1])
+						mac.data.continue_if()
+						process_block(stmt.data[2])
+						mac.data.end_if()
+					else:
+						expr_y = ConstExpr(["1 if ("]) + expr + ConstExpr([") else 0"])
+						expr_n = ConstExpr(["0 if ("]) + expr + ConstExpr([") else 1"])
+						mac.data.start_repeat(expr_y)
+						process_block(stmt.data[1])
+						mac.data.end_repeat()
+						mac.data.start_repeat(expr_n)
+						process_block(stmt.data[2])
+						mac.data.end_repeat()
+				elif stmt.name == "while_or_repeat":
+					expr = self.__const_expr(stmt.data[0])
+					if len(expr.data) == 1 and type(expr.data[0]) == ConstRef and expr.data[0].name in mac.data.pos_table:
+						mac.data.start_while(expr.data[0].name)
+						process_block(stmt.data[1])
+						mac.data.end_while()
+					else:
+						mac.data.start_repeat(expr)
+						process_block(stmt.data[1])
+						mac.data.end_repeat()
+				else: raise SyntaxError(f"{stmt.name}???")
+		process_block(node.data[4])
 		return name, mac	
 	
 	def process(self) -> None:
@@ -807,7 +887,7 @@ class Processor:
 			elif i.name == "macro_def":
 				mdef = self.__macro_def(i)
 				self.macros[mdef[0]] = mdef[1]
-			else: raise NameError(f"{i.name}???")
+			else: raise SyntaxError(f"{i.name}???")
 		self.start = self.__call(self.tree.data[-1])[0]
 
 	def build(self) -> str:
@@ -825,10 +905,23 @@ def show_AST(node: ASTNode|VP.Token, level = 0):
 
 if __name__ == "__main__":
 	with open("test.vk", "r") as f:
-		p = Parser(f.read())
+		t = f.read()
+	p = Parser(t)
 	tree = p.parse()
 	VP.show_AST(tree)
 	show_AST(Cleaner(tree).clean())
 	proc = Processor(tree)
 	proc.process()
-	print(proc.build())
+	result = proc.build()
+	print("\n=======================\nMacrofuck form\n=======================")
+	print(result)
+	print("\n=======================\nRunning code...\n=======================")
+	import BrainfuckInterpreter
+	b = BrainfuckInterpreter.Interpreter(proc.build())
+	b.run(True)
+	print("\n=======================\nBrainfuck code\n=======================")
+	print(b.code)
+	print("\n=======================\nCode size\n=======================")
+	print(len(b.code))
+	print("\n=======================\nStarting Varfuck code\n=======================")
+	print(t)
