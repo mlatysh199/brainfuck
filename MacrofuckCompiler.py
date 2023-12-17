@@ -99,6 +99,7 @@ class Compiler:
 
 	def __init__(self, code : str) -> None:
 		self.macros = {"repeat" : self.mac_placeholder,
+			"fakecopy" : self.mac_fakecopy,
 		 	"implant" : self.mac_implant,
 		 	"kill" : self.mac_kill,
 			"upb" : self.mac_upb,
@@ -249,7 +250,14 @@ class Compiler:
 
 	# Placeholder function
 	def mac_placeholder(self, values : list[str]) -> str:
-		return self.convert(f"{values[0]}")
+		return self.convert(f"+-{values[0]}")
+	
+	def mac_fakecopy(self, values: list[str]) -> str:
+		return ""
+	
+	def mac_lineto(self, values: list[str]) -> str:
+		x = self.param_to_number(values[0])
+		return self.convert(f"45+{x}.10-.[-]")
 
 	def mac_implant(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
@@ -437,13 +445,14 @@ class Compiler:
 	# AX
 	def mac_boolbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
-		return self.convert(f"{x - 1}>{x - 1}repeat(<or())")
+		# If this code is not included, the whole system breaks ;)
+		return self.convert(f"+-{x - 1}>{x - 1}repeat(<or())")
 
 	# Gets not value of AX
 	# AX..
 	def mac_notbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
-		return self.convert(f"{x}>{x}repeat(<not()upb(0))>downbinx(8;0)<")
+		return self.convert(f"{x}>{x}repeat(<not()upb(0))>downbinx({x};0)<")
 
 	# AX and BX
 	# AXBX.
@@ -520,7 +529,8 @@ class Compiler:
 				;
 				2repeat({x}<lshiftbinx({x})){2*x}>
 			  )
-			  	{2*x}<upb({2*x + 3}){x}>upb({x}){x + 1}>ifel(>ifel(;6<+6>)<;)2>;){2*x + 1}<cleanbinx({2*x}){2*x}>downb({2*x - 1}){2*x}<""")
+			  	@{x}<@upb({x}){x + 1}>@ifel(3<+3>;)2>@
+				;){2*x + 1}<cleanbinx({2*x}){2*x}>@downb({2*x - 1}){2*x}<""")
 	
 	def mac_greatbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
@@ -530,7 +540,7 @@ class Compiler:
 				;
 				2repeat({x}<lshiftbinx({x})){2*x}>
 			  )
-			  	{2*x}<upb({2*x + 3}){x}>upb({x}){x + 1}>ifel(;>ifel(6<+6>;)<)2>;){2*x + 1}<cleanbinx({2*x}){2*x}>downb({2*x - 1}){2*x}<""")
+			  	{x}<upb({x}){x + 1}>ifel(;3<+3>)2>;){2*x + 1}<cleanbinx({2*x}){2*x}>downb({2*x - 1}){2*x}<""")
 
 	# Deprecated
 	def mac_moveupb(self, values : list[str]) -> str:

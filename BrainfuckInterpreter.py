@@ -2,6 +2,8 @@ import sys, MacrofuckCompiler
 
 # Runs brainfuck code
 class Interpreter:
+	ISOLATE_DEBUG = True
+
 	def __init__(self, code : str, debug : bool=False, size : int=None):
 		self.compiler = MacrofuckCompiler.Compiler(code)
 		if not size: size = self.compiler.min_mem_size
@@ -26,13 +28,14 @@ class Interpreter:
 		result = ""
 		mem_text = list('  ' + '  '.join([str(i).rjust(3) for i in self.mem]) + '  ')
 		mem_text[5 + self.ptr*5] = '#'
-		if self.pc in self.stack_trace_data[0] and (ins != '[' or len(self.stack_trace) < len(self.stack_trace_data[0][self.pc]) or self.stack_trace[-len(self.stack_trace_data[0][self.pc]):] != self.stack_trace_data[0][self.pc]):
-			result += "DEBUG: " + " > ".join(self.stack_trace) + ' '
-			self.stack_trace += self.stack_trace_data[0][self.pc]
-			result += ">>> " + " > ".join(self.stack_trace_data[0][self.pc]) + '\n'
-		if self.pc in self.stack_trace_data[1] and (ins != ']' or not self.mem[self.ptr]):
-			for _ in range(len(self.stack_trace_data[1][self.pc])): self.stack_trace.pop()
-			result += "DEBUG: " + " > ".join(self.stack_trace) + " <<< " + " < ".join(self.stack_trace_data[1][self.pc]) + '\n'
+		if not Interpreter.ISOLATE_DEBUG:	
+			if self.pc in self.stack_trace_data[0] and (ins != '[' or len(self.stack_trace) < len(self.stack_trace_data[0][self.pc]) or self.stack_trace[-len(self.stack_trace_data[0][self.pc]):] != self.stack_trace_data[0][self.pc]):
+				result += "DEBUG: " + " > ".join(self.stack_trace) + ' '
+				self.stack_trace += self.stack_trace_data[0][self.pc]
+				result += ">>> " + " > ".join(self.stack_trace_data[0][self.pc]) + '\n'
+			if self.pc in self.stack_trace_data[1] and (ins != ']' or not self.mem[self.ptr]):
+				for _ in range(len(self.stack_trace_data[1][self.pc])): self.stack_trace.pop()
+				result += "DEBUG: " + " > ".join(self.stack_trace) + " <<< " + " < ".join(self.stack_trace_data[1][self.pc]) + '\n'
 		result += f"DEBUG: {str(self.pc).rjust(4)} {ins} {str(self.ptr).rjust(3)}  [{''.join(mem_text)}]"
 		return result
 
@@ -43,7 +46,7 @@ class Interpreter:
 		if self.pc >= length: raise IndexError("The whole program has been executed. Execute Interpreter.reset to be able to restart the program.")
 		while self.pc < length:
 			ins = self.code[self.pc]
-			if self.debug: print(self.__debug(ins))
+			if self.debug and (not Interpreter.ISOLATE_DEBUG or ins == '@'): print(self.__debug(ins))
 			if ins == '<': self.ptr -= 1
 			elif ins == '>': self.ptr += 1
 			elif ins == '-': self.mem[self.ptr] = (self.mem[self.ptr] - 1)&255
@@ -71,7 +74,7 @@ class Interpreter:
 				if self.mem[self.ptr]: self.pc = ret - 1
 			if self.ptr < 0 or self.ptr >= self.size: raise MemoryError("Pointer exceeded designated memory: "+ " > ".join(self.stack_trace))
 			self.pc += 1
-		if self.debug: print(self.__debug(' '))
+		if self.debug and not Interpreter.ISOLATE_DEBUG: print(self.__debug(' '))
 		return result
 
 if __name__ == "__main__":
