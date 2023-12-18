@@ -32,7 +32,7 @@ var_struct ::= "{" (string? (separator string?)*)? "}";
 call ::= const_struct string var_struct var_struct ;
 return ::= "fuck" var_struct?;
 while_or_repeat ::= const_expr block;
-ifel ::= (const_expr) block block;
+ifel ::= (const_expr) block breaker* block;
 const_def ::= const_types string "=" const_expr;
 statement ::= (call | return | while_or_repeat | ifel | const_def);
 block ::= "[" breaker* (statement breaker+)* "]";

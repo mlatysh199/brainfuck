@@ -1,0 +1,112 @@
+{num size} do_comp {1} {size n, size mid, size mmid} [
+    {size, 1} implant {one} {};
+    {size} addbinx {nn} {one, n};
+    {size} lessbinx {ca} {mmid, nn};
+    {size} lshiftbinx {mid} {mid};
+    {size, 2} implant {two} {};
+    {size} addbinx {mid} {two, mid};
+    {size} addbinx {mid} {mmid, mid};
+    {size} lessbinx {cb} {n, mid};
+    {} andbool {c} {ca, cb};
+    {} notbool {c} {c};
+    fuck {c};
+]
+
+{num size} sqrt {size} {size n} [
+    {size, 3} implant {c} {};
+    {size} greatbinx {ca} {n, c};
+    ca [
+        {size, 1} implant {inf} {};
+        {size} copy {sup} {n};
+        {size} addbinx {mid} {sup, inf};
+        {size} rshiftbinx {mid} {mid};
+        {size} multbinx {mmid} {mid, mid};
+        {size} do_comp {cb} {n, mid, mmid};
+        cb [
+            {size} greatbinx {g} {mmid, n}
+            g [
+                {size} copy {sup} {mid}
+            ][
+                {size} copy {inf} {mid}
+            ]
+            {size} addbinx {mid} {sup, inf};
+            {size} rshiftbinx {mid} {mid};
+            {size} multbinx {mmid} {mid, mid};
+            {size} do_comp {cb} {n, mid, mmid};
+        ];
+        {size, 1} implant {ja} {};
+        {size} lshiftbinx {tmid} {mid};
+        {size} addbinx {mmid} {ja, mmid};
+        {size} addbinx {mmid} {mmid, tmid};
+        {size} eqbinx {cb} {mmid, n};
+        cb [
+            {size} addbinx {mid} {mid, ja};
+        ][];
+        fuck {mid};
+    ][
+        {size, 1} implant {r} {};
+        fuck {r};
+    ];
+]
+
+{num size} rev_tri {size} {size k} [
+    {size, 3} implant {three} {}
+    {size, 1} implant {one} {}
+    {size} addbinx {t} {k, one}
+    {size} multbinx {t} {t, k}
+    {size} rshiftbinx {t} {t}
+    {size} multbinx {t} {three, t}
+    {size} subbinx {t} {t, k}
+    fuck {t}
+]
+
+{num size} naipes {size, size} {size n} [
+    {size, 2} implant {two} {}
+    {size} lessbinx {c} {n, two}
+    c [][
+        {size} eqbinx {c} {n, two}
+        c [
+            {size, 1} implant {one} {}
+            fuck {one,}   
+        ][
+            {size, 3} implant {three} {}
+            {size} divbinx {k} {n, three}
+            {size} lshiftbinx {k} {k}
+            {size} sqrt {k} {k}
+            {size} rev_tri {t} {k}
+            {size} greatbinx {c} {t, n}
+            c [
+                {size, 1} implant {one} {}
+                {size} subbinx {k} {k, one}
+            ][]
+            fuck {k,}
+            {size} rev_tri {t} {k}
+            {size} subbinx {n} {n, t}
+            fuck {,n}
+        ]
+    ]
+]
+
+{num size} main {} {} [
+    {size} getintbinx {n} {}
+    {size, 1} implant {one} {}
+    n [
+        {size} subbinx {n} {n, one}
+        {size} getintbinx {a} {}
+        {1, 1} implant {first} {}
+        a [
+            {size} naipes {ans, a} {a}
+            ans [
+                first [
+                    {} notbool {first} {first}
+                ][
+                    {} space {} {}
+                ]
+                {size} printintbinx {} {ans};
+            ][]
+        ]
+        {} endl {} {};
+    ]
+]
+
+{16} main {} {}

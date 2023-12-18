@@ -2,7 +2,7 @@ import sys, MacrofuckCompiler
 
 # Runs brainfuck code
 class Interpreter:
-	ISOLATE_DEBUG = True
+	ISOLATE_DEBUG = False
 
 	def __init__(self, code : str, debug : bool=False, size : int=None):
 		self.compiler = MacrofuckCompiler.Compiler(code)
@@ -78,4 +78,4 @@ class Interpreter:
 		return result
 
 if __name__ == "__main__":
-	pass
+	Interpreter("implant(4;1)printcleanintbinx(4)endl()").run(True)

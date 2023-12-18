@@ -136,8 +136,11 @@ class Compiler:
 			"printbinx" : self.mac_printbinx,
 			"printbool" : self.mac_printbool,
 			"printintbinx" : self.mac_printintbinx,
+			"printcleanintbinx" : self.mac_printcleanintbinx,
 			"printdigit" : self.mac_printdigit,
+			"printnzdigit" : self.mac_printnzdigit,
 			"endl" : self.mac_endl,
+			"space" : self.mac_space,
 			"getintbinx" : self.mac_getintbinx,
 			"getbinx" : self.mac_getbinx,
 			"cleanbinx" : self.mac_cleanbinx,
@@ -406,25 +409,51 @@ class Compiler:
 	def mac_printbool(self, values : list[str]) -> str:
 		return self.convert("ifel(84+.2-.3+.16-.[-];70+.5-.11+.7+.14-.[-])")
 
-	# Prints an integer (at least 4 bits)
 	def mac_printintbinx(self, values : list[str]) -> str:
 		x = self.param_to_number(values[0])
 		bx = 1 << x
 		ten = 1
 		while ten*10 < bx: ten *= 10
 		data = ""
-		while ten:
-			data += f"copybinx({x};{x - 1}){2*x}>implant({x};{ten}){x}<divbinx({x}){x - 4}>printdigit(){x - 4}<implant({x};{ten}){x}<modbinx({x})"
-			ten //= 10
+		if x == 1: data = "48+.[-]"
+		elif x == 2: data = "[-2>2+2<]>48+.[-]<"
+		elif x == 3: data = "[-3>4+3<]>[-2>2+2<]>48+.[-]2<"
+		else:
+			while ten:
+				data += f"copybinx({x};{x - 1}){2*x}>implant({x};{ten}){x}<divbinx({x}){x - 4}>printdigit(){x - 4}<implant({x};{ten}){x}<modbinx({x})"
+				ten //= 10
+		return self.convert(data)
+	
+	def mac_printcleanintbinx(self, values : list[str]) -> str:
+		x = self.param_to_number(values[0])
+		bx = 1 << x
+		ten = 1
+		while ten*10 < bx: ten *= 10
+		data = ""
+		if x == 1: data = "48+.[-]"
+		elif x == 2: data = "[-2>2+2<]>48+.[-]<"
+		elif x == 3: data = "[-3>4+3<]>[-2>2+2<]>48+.[-]2<"
+		else:
+			data = f"upbinx({x};0)>"
+			while ten:
+				if ten//10: data += f"copybinx({x};{x - 1}){2*x}>implant({x};{ten}){x}<divbinx({x}){x + 1}<copyb({2*x}){2*x + 1}>ifel(6<printdigit()6>;6<copybinx(4;5)printnzdigit()6>eqbinx(4)not()downb({2 + 2*x})){x}<implant({x};{ten}){x}<modbinx({x})"
+				else: data += f"{x - 4}>printdigit(){x - 4}<cleanbinx({x})<[-]"
+				ten //= 10
 		return self.convert(data)
 
 	def mac_printdigit(self, values : list[str]) -> str:
-		return self.convert(f"[-4>8+4<]>[-3>4+3<]>[-2>2+2<]>[->+<]>48+.[-]4<")
+		return self.convert(f"[-3>8+3<]>[-2>4+2<]>[->2+<]>48+.[-]3<")
+	
+	def mac_printnzdigit(self, values : list[str]) -> str:
+		return self.convert(f"[-3>8+3<]>[-2>4+2<]>[->2+<]>[48+.[-]]3<")
 
 	# Prints a line change
 	# .
 	def mac_endl(self, values : list[str]) -> str:
 		return self.convert("10+.[-]")
+
+	def mac_space(self, values: list[str]) -> str:
+		return self.convert("32+.[-]")
 
 	# At least bin4
 	def mac_getintbinx(self, values : list[str]) -> str:

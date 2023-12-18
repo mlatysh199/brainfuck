@@ -819,8 +819,15 @@ class Processor:
 			[],
 			[]
 			),
+		"space" : Macro.build(
+			"space",
+			[],
+			[],
+			[],
+			[]
+			),
 		"printintbinx" : Macro.build(
-			"printintbinx",
+			"printcleanintbinx",
 			[("x", ConstExpr)],
 			[BinX("binx", ConstExpr([ConstRef("x")]))],
 			[],
@@ -951,6 +958,13 @@ class Processor:
 			[BinX("binx", ConstExpr([ConstRef("x")]))],
 			[ConstExpr([ConstRef("x")])],
 			[]
+			),
+		"getintbinx" : Macro.build(
+			"getintbinx",
+			[("x", ConstExpr)],
+			[],
+			[ConstExpr([ConstRef("x")])],
+			[ConstExpr([ConstRef("x")])]
 			),
 	}
 
@@ -1089,7 +1103,7 @@ def show_AST(node: ASTNode|VP.Token, level = 0):
 			show_AST(i, level + 1)
 
 if __name__ == "__main__":
-	with open("test.vk", "r") as f:
+	with open("naipes.vk", "r") as f:
 		t = f.read()
 	p = Parser(t)
 	tree = p.parse()
