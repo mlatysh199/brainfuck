@@ -22,6 +22,6 @@ These four points permit the creation of a "simple" language. However, by making
 ## What's left to do
 
 * Fix bugs ;(
-* Add a variable management system to the converter.
-* Create some kind of test game/"complicated" program.
+* Optimize virtual parser (or replace it completely (it was a novel idea but reinventing the wheel is rather senseless).
+* Optimize macrofuck (also expand usability of certain macros).
 * Create a pseudo-brainfuck interpreter inside of brainfuck and possibly add real functions.
