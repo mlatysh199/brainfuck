@@ -895,7 +895,7 @@ if __name__ == "__main__":
 	print("\n=======================\nBrainfuck code\n=======================")
 	import BrainfuckInterpreter
 	b = BrainfuckInterpreter.Interpreter(proc.build(), False)
-	# print(b.code)
+	print(b.code)
 	print("\n=======================\nCode size\n=======================")
 	print(len(b.code))
 	print("\n=======================\nStarting Varfuck code\n=======================")
