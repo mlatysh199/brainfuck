@@ -291,7 +291,6 @@ class BinXManager:
 			self.size += ret[i]
 			self.ret_size += ret[i]
 		self.code: list[str|ConstExpr|MacroInvocation] = []
-		#self.comparisons: list[tuple[ConstExpr, ConstExpr]] = []
 		self.pos = self.var_stack[-1][0] if len(self.var_stack[-1]) else None
 	
 	def add(self, data: Union[str,ConstExpr,"MacroInvocation"]) -> None:
@@ -395,7 +394,6 @@ class BinXManager:
 		for i in range(len(ret)):
 			if ret_data[i] != None:
 				if ret_data[i] in self.order_table:
-					#self.comparisons.append((ret[i], self.size_table[ret_data[i]]))
 					self.clear_var(ret_data[i])
 					self.push_var(ret_data[i])
 				else: self.add_var(BinX(ret_data[i], ret[i]))
@@ -438,7 +436,6 @@ class BinXManager:
 		self.add(")")
 		self.add(self.ret_pos)
 		self.add("<")
-		#self.add("@")
 	
 	def start_repeat(self, num: ConstExpr) -> None:
 		self.add(num)
@@ -487,214 +484,6 @@ class BinXManager:
 		self.size = self.call_stack[-1]
 		self.pop_section()
 
-"""
-class BinXManager:
-	def __init__(self, data: list[BinX], ret: list[ConstExpr]) -> None:
-		self.size = ConstExpr(["0"], True)
-		self.pos = ConstExpr(["0"], True)
-		self.size_table: dict[str, ConstExpr] = dict()
-		self.pos_table: dict[str, ConstExpr] = dict()
-		for i in data:
-			if i.name == None: raise NameError("Variable names must be complete.")
-			print(i.name)
-			if i.name in self.size_table: raise NameError("Variable names must be non repeating.")
-			self.size_table[i.name] = i.size
-			self.pos_table[i.name] = self.size
-			self.size = self.size + i.size
-		self.params = data
-		self.ret = ret
-		# Helps make sure that whatever we try to return does not overwrite any if spaces
-		for i in ret: self.size = self.size + i
-		self.stack: list[ConstExpr] = []
-		self.code: list[str|ConstExpr|MacroInvocation] = []
-		self.comparisons: list[tuple[ConstExpr, ConstExpr]] = []
-	
-	def start_while(self, name: str) -> None:
-		self.add("while(")
-		self.copy(name)
-		self.goup(self.size)
-		self.add("boolbinx(")
-		self.add(self.size_table[name])
-		self.add(")")
-		self.add(";")
-		self.godown()
-		self.stack.append(self.size)
-		self.size = self.size + ConstExpr("2") + self.size_table[name]
-
-	def end_while(self) -> None:
-		self.add(")")
-		self.pos = self.stack.pop()
-		self.godown()
-	
-	def start_if(self, name: str) -> None:
-		self.copy(name)
-		self.goup(self.size)
-		self.add("boolbinx(")
-		self.add(self.size_table[name])
-		self.add(")ifel(")
-		self.stack.append(self.size)
-		self.size = self.size + ConstExpr("2")
-		self.godown()
-
-	def continue_if(self) -> None:
-		self.goup(self.stack[-1])
-		self.add(";")
-		self.godown()
-
-	def end_if(self) -> None:
-		self.goup(self.stack.pop())
-		self.add(")")
-		self.godown()
-	
-	def start_call(self, data: list[str|None], params: list[ConstExpr]) -> None:
-		start = self.size
-		if len(data) != len(params): raise TypeError(f"Expected {len(params)} parameters but got {len(data)}.")
-		for i in range(len(data)):
-			if data[i] != None:
-				if data[i] not in self.pos_table: raise NameError(f"No such variable defined as {data[i]}.")
-				self.comparisons.append((params[i], self.size_table[data[i]]))
-				self.copy(data[i])
-			self.size = self.size + params[i]
-		self.size = start
-		self.goup(self.size)
-	
-	def end_call(self, data: list[str|None], ret: list[ConstExpr]) -> None:
-		self.godown()
-		if len(data) != len(ret): raise TypeError(f"Expected {len(ret)} return parameters but got {len(data)}.")
-		for i in range(len(ret)):
-			if data[i] != None:
-				if data[i] in self.size_table:
-					self.comparisons.append((ret[i], self.size_table[data[i]]))
-					self.clear_name(data[i])
-					self.replace(data[i])
-				else:
-					self.pos_table[data[i]] = self.size
-					self.size_table[data[i]] = ret[i]
-			else: self.clear_pos(self.size, ret[i])
-			self.size = self.size + ret[i]
-	
-	def start_repeat(self, num: ConstExpr) -> None:
-		self.add(num)
-		self.add("repeat(")
-	
-	def end_repeat(self) -> None:
-		self.add(")")
-
-	def copy(self, name: str) -> None:
-		dif = self.size - self.pos_table[name] - ConstExpr(["1"])
-		self.goup(self.pos_table[name])
-		self.add("copybinx(")
-		self.add(self.size_table[name])
-		self.add(";")
-		self.add(dif)
-		self.add(")")
-		self.godown()
-
-	def copysize(self, size: ConstExpr, pos: ConstExpr) -> None:
-		dif = self.size - pos - ConstExpr(["1"])
-		self.goup(pos)
-		self.add("copybinx(")
-		self.add(size)
-		self.add(";")
-		self.add(dif)
-		self.add(")")
-		self.godown()
-
-	def moveup(self, name: str) -> None:
-		dif = self.size - self.pos_table[name] - ConstExpr(["1"])
-		self.goup(self.pos_table[name])
-		self.add("upbinx(")
-		self.add(self.size_table[name])
-		self.add(";")
-		self.add(dif)
-		self.add(")")
-		self.pos_table[name] = self.size
-		self.size = self.size + self.size_table[name]
-		self.godown()
-
-	def movedown(self, size: ConstExpr) -> None:
-		dif = self.size - ConstExpr(["1"])
-		self.goup(self.size)
-		self.add("downbinx(")
-		self.add(size)
-		self.add(";")
-		self.add(dif)
-		self.add(")")
-		self.godown()
-	
-	def replace(self, name: str) -> None:
-		dif = self.size - self.pos_table[name] - ConstExpr(["1"])
-		self.goup(self.size)
-		self.add("downbinx(")
-		self.add(self.size_table[name])
-		self.add(";")
-		self.add(dif)
-		self.add(")")
-		self.godown()
-
-	def fuck(self, data: list[str]) -> None:
-		if len(data) == 0:
-			self.clear_pos(ConstExpr("0"), self.size)
-			return
-		if len(data) != len(self.ret): raise TypeError("Return types do not match indicated")
-		size = ConstExpr("0")
-		start = self.size
-		for i in range(len(data)):
-			if data[i] != None: 
-				self.comparisons.append((self.size_table[data[i]], self.ret[i]))
-				self.moveup(data[i])
-			size = size + self.ret[i]
-			self.size = self.size + self.ret[i]
-		self.size = start
-		self.clear_pos(ConstExpr("0"), self.size)
-		self.movedown(size)
-		self.size = size
-
-	def clear_name(self, name: str) -> None:
-		self.goup(self.pos_table[name])
-		self.add(self.size_table[name])
-		self.add("repeat([-]>)")
-		self.add(self.size_table[name])
-		self.add("<")
-		self.godown()
-	
-	def clear_pos(self, pos: ConstExpr, size: ConstExpr) -> None:
-		self.goup(pos)
-		self.add(size)
-		self.add("repeat([-]>)")
-		self.add(size)
-		self.add("<")
-		self.godown()
-
-	def goup(self, pos: ConstExpr) -> None:
-		self.add(pos)
-		self.add(">")
-		self.pos = pos
-	
-	def godown(self) -> None:
-		self.add(self.pos)
-		self.add("<")
-	
-	def add(self, data: Union[str,ConstExpr,"MacroInvocation"]):
-		self.code.append(data)
-	
-	def debug(self):
-		self.goup(self.size)
-		self.add("endl()")
-		self.godown()
-		self.copysize(self.size, ConstExpr(["0"]))
-		self.goup(self.size)
-		self.add("printbinx(")
-		self.add(self.size)
-		self.add(")")
-		self.add("endl()")
-		self.godown()
-"""
-		
-class ConstOp:
-	# repeat, ifel, const_def
-	pass
-
 class Macro:
 	def __init__(self, name: str, c_params: list[tuple[str, Any]], params: list[BinX], ret: list[ConstExpr]) -> None:
 		self.name = name
@@ -718,19 +507,12 @@ class Macro:
 	def invoke(self, params: list[ConstExpr]) -> str:
 		for i in range(len(params)):
 			if not params[i].done: raise NameError(f"The {i}th parameter hasn't been completed.")
-			#print(params[i])
 		code = self.data.code.copy()
-		#comp = self.data.comparisons.copy()
 		for i in range(len(code)):
-			# if type(code[j]) == String...
 			if type(code[i]) == ConstExpr:
 				for j in range(len(params)):
 					if type(code[i]) == ConstExpr: code[i] = code[i].replace(self.params[j][0], params[j])
 			if type(code[i]) == MacroInvocation: code[i].prepare([(self.params[j][0], params[j]) for j in range(len(params))])
-		#for i in range(len(params)):
-		#	for j in range(len(comp)): comp[j] = comp[j][0].replace(self.params[i][0], params[i]), comp[j][1].replace(self.params[i][0], params[i])
-		#for i in comp:
-		#	if str(i[0]) != str(i[1]): raise TypeError(f"Expected expressions to be the same but got {i[0]} and {i[1]}.")
 		return "".join(map(str, code))
 
 class MacroInvocation:
@@ -1031,9 +813,6 @@ class Processor:
 					self.local_consts[cdef[0]] = cdef[1]
 				elif stmt.name == "call":
 					invc = self.__call(stmt)
-					#mac.data.start_call(invc[2], invc[0].test_params())
-					#mac.data.add(invc[0])
-					#mac.data.end_call(invc[1], invc[0].test_ret())
 					if invc[0].macro.name == "lessbinx":
 						mac.data.goto(None)
 						mac.data.add("@")
@@ -1041,7 +820,6 @@ class Processor:
 					if invc[0].macro.name == "lessbinx":
 						mac.data.goto(None)
 						mac.data.add("@")
-					# mac.data.debug() # TODO
 				elif stmt.name == "return":
 					s = []
 					if len(stmt.data) == 1: s = self.__var_struct(stmt.data[0])
@@ -1117,7 +895,7 @@ if __name__ == "__main__":
 	print("\n=======================\nBrainfuck code\n=======================")
 	import BrainfuckInterpreter
 	b = BrainfuckInterpreter.Interpreter(proc.build(), False)
-	#print(b.code)
+	# print(b.code)
 	print("\n=======================\nCode size\n=======================")
 	print(len(b.code))
 	print("\n=======================\nStarting Varfuck code\n=======================")
