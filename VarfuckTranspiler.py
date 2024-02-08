@@ -1154,6 +1154,8 @@ if __name__ == "__main__":
 
     b = BrainfuckInterpreter.Interpreter(proc.build(), False)
     print(b.code)
+    with open("naipes.bf", "w") as f:
+        f.write(b.code)
     print("\n=======================\nCode size\n=======================")
     print(len(b.code))
     print("\n=======================\nStarting Varfuck code\n=======================")
